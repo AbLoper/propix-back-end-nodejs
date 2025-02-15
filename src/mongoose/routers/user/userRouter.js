@@ -4,7 +4,7 @@ const User = require('../../models/user/userModel')
 const jwt = require('jsonwebtoken')
 const { body, validationResult } = require('express-validator')
 // استخدام Middlewares لتحسين الأمان وتنظيم التطبيق
-const auth = require('../../middleware/auth');
+const userAuth = require('../../middleware/user/userAuth');
 
 // مسار التسجيل
 router.post('/register', [
@@ -90,7 +90,7 @@ router.post('/login', [
 
 
 // مسار محمي يتطلب التوكن
-router.get('/profile', auth, (req, res) => {
+router.get('/profile', userAuth, (req, res) => {
     // إذا كان التوكن صالحًا، يمكننا الوصول إلى بيانات المستخدم التي تم فك تشفيرها بواسطة الميدلوير auth
     const token = req.headers.authorization?.split(' ')[1]; // استخراج التوكن من header
 
@@ -112,7 +112,7 @@ router.get('/profile', auth, (req, res) => {
 });
 
 // مسار تحديث بيانات المستخدم
-router.patch('/update-profile', auth, [
+router.patch('/update-profile', userAuth, [
     body('email')
         .isEmail().withMessage('Please provide a valid email address')
         .normalizeEmail()
@@ -155,7 +155,7 @@ router.patch('/update-profile', auth, [
 });
 
 // مسار تسجيل الخروج للمستخدم
-router.post('/logout', auth, async (req, res) => {
+router.post('/logout', userAuth, async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
         if (!user) {
@@ -173,7 +173,7 @@ router.post('/logout', auth, async (req, res) => {
 });
 
 // مسار تسجيل الخروج من جميع الأجهزة
-router.post('/logoutAll', auth, async (req, res) => {
+router.post('/logoutAll', userAuth, async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
         if (!user) {
@@ -191,7 +191,7 @@ router.post('/logoutAll', auth, async (req, res) => {
 });
 
 // مسار حذف حساب المستخدم
-router.delete('/delete-account', auth, async (req, res) => {
+router.delete('/delete-account', userAuth, async (req, res) => {
     try {
         // البحث عن المستخدم باستخدام الـ ID من الـ JWT
         const user = await User.findById(req.user.userId);
