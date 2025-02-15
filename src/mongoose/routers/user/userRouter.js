@@ -74,6 +74,10 @@ router.post('/login', [
             { expiresIn: '1h' } // صلاحية التوكن (مثال: 1 ساعة)
         );
 
+        // حفظ التوكن في قاعدة البيانات
+        user.tokens.push(token);
+        await user.save();
+
         res.status(200).json({
             message: 'Login successful',
             token: token // إرجاع التوكن للمستخدم
@@ -83,6 +87,7 @@ router.post('/login', [
         res.status(500).json({ message: 'Error logging in', error: err.message });
     }
 });
+
 
 // مسار محمي يتطلب التوكن
 router.get('/profile', auth, (req, res) => {
@@ -146,6 +151,42 @@ router.patch('/update-profile', auth, [
         res.status(200).json({ message: 'Profile updated successfully' });
     } catch (err) {
         res.status(500).json({ message: 'Error updating profile', error: err.message });
+    }
+});
+
+// مسار تسجيل الخروج للمستخدم
+router.post('/logout', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // إزالة التوكن الحالي من قاعدة البيانات
+        user.tokens = user.tokens.filter(token => token !== req.token);
+        await user.save();
+
+        res.status(200).json({ message: 'Logout successful' });
+    } catch (err) {
+        res.status(500).json({ message: 'Error logging out', error: err.message });
+    }
+});
+
+// مسار تسجيل الخروج من جميع الأجهزة
+router.post('/logoutAll', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // إزالة جميع التوكنات من قاعدة البيانات
+        user.tokens = [];
+        await user.save();
+
+        res.status(200).json({ message: 'Logged out from all devices' });
+    } catch (err) {
+        res.status(500).json({ message: 'Error logging out from all devices', error: err.message });
     }
 });
 

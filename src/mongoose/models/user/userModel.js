@@ -39,7 +39,8 @@ const userSchema = new mongoose.Schema({
     updatedAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    tokens: [{ type: String }] // حقل للتوكنات المخزنة
 });
 
 // تشفير كلمة المرور قبل حفظها في قاعدة البيانات
