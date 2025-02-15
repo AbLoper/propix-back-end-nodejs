@@ -31,17 +31,10 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 10
     },
-    // إضافة حقل تاريخ الإنشاء مع قيمة افتراضية
-    createdAt: {
-        type: Date,
-        default: Date.now  // سيتم تعيين تاريخ 
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
-    },
     tokens: [{ type: String }] // حقل للتوكنات المخزنة
-});
+},
+    { timestamps: true } // ستضيف `createdAt` و `updatedAt` تلقائيًا
+);
 
 // تشفير كلمة المرور قبل حفظها في قاعدة البيانات
 userSchema.pre('save', async function (next) {
