@@ -1,5 +1,8 @@
 // استيراد الاتصال بقاعدة البيانات
-require('./mongoose/database'); // هذه هي الطريقة التي تقوم بها بربط ملف database.js
+require('./database'); // هذه هي الطريقة التي تقوم بها بربط ملف database.js
+// استدعاء cronJobs.js
+require('./utils/prop/cronJobs');
+
 // استيراد المكتبات
 const express = require('express');
 // إنشاء تطبيق Express جديد
@@ -16,7 +19,8 @@ if (result.error) {
 const port = process.env.PORT || 3000;
 
 // استيراد المسارات
-const userRouter = require('./mongoose/routers/user/userRouter');
+const userRouter = require('./routers/user/userRouter');
+const propRouter = require('./routers/prop/propRouter');
 
 // تمكين الـ JSON في الطلبات الواردة
 app.use(express.json()); // تأكد من تمكين express.json() أولاً
@@ -28,6 +32,7 @@ app.get('/', (req, res) => {
 
 // ربط المسارات بالموجهات
 app.use('/users', userRouter); // ربط المسارات الخاصة بالمستخدمين
+app.use('/props', propRouter); // ربط المسارات الخاصة بالمستخدمين
 
 // مسار لجميع الصفحات غير موجودة
 app.get('*', (req, res) => {
