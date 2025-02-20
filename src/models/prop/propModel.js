@@ -82,21 +82,39 @@ const propSchema = new mongoose.Schema(
             fee: {
                 type: Number,
                 default: function () {
+                    // حساب الرسوم بناءً على السعر (10% من السعر)
                     return this.price.amount * 0.10;
                 },
             },
         },
 
         // 6. التواريخ
-        expirydate: { type: Date, default: function () { return new Date(this.createdAt).setMonth(new Date(this.createdAt).getMonth() + 3); } },
+        expirydate: {
+            type: Date,
+            default: function () {
+                // تحديد فترة صلاحية بناءً على نوع المعاملة المالية (بيع، إيجار، استثمار)
+                if (this.financial.rent && this.financial.rent.duration) {
+                    switch (this.financial.rent.duration) {
+                        case 'يومي':
+                            return new Date(Date.now() + 1 * 24 * 60 * 60 * 1000);  // يوم
+                        case 'أسبوعي':
+                            return new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);  // أسبوع
+                        case 'شهري':
+                            return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // شهر
+                        default:
+                            return new Date(Date.now() + 3 * 30 * 24 * 60 * 60 * 1000);  // 3 أشهر كإفتراضي
+                    }
+                }
+                return new Date(Date.now() + 3 * 30 * 24 * 60 * 60 * 1000); // 3 أشهر كإفتراضي
+            }
+        },
         activatedAt: { type: Date },
         disabledAt: { type: Date },
         lastPublishedAt: { type: Date },
 
         // 7. حالة الإعلان
-        status: { type: String, enum: ['active', 'inactive', 'waiting','rejected','expired'], default: 'waiting' },
+        status: { type: String, enum: ['active', 'inactive', 'waiting', 'rejected', 'expired'], default: 'waiting' },
         autoRepost: { type: Boolean, default: false },
-
 
         // 8. من قام بإجراء التعديلات
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

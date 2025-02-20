@@ -1,23 +1,23 @@
-// استيراد المكتبات
 const mongoose = require('mongoose');
-
-// تحميل المتغيرات البيئية من ملف .env
 const dotenv = require('dotenv');
 dotenv.config();
 
-// التأكد من وجود URL لقاعدة البيانات
-const MONGODB_URL = process.env.MONGODB_URL;
-if (!MONGODB_URL) {
-    console.error("Error Connecting Database.. Check MongoDb_URL In .env File");
-    process.exit(1);  // إنهاء التطبيق إذا لم يتم العثور على عنوان قاعدة البيانات
-}
+const connectToDatabase = async () => {
+    try {
+        const mongoURI = process.env.MONGODB_URL;
 
-// ربط قاعدة البيانات باستخدام Mongoose
-mongoose.connect(MONGODB_URL)
-    .then(() => {
-        console.log('Database connected successfully!');
-    })
-    .catch((error) => {
-        console.error('Database connection failed:', error);
-        process.exit(1);  // إنهاء التطبيق إذا فشل الاتصال بقاعدة البيانات
-    });
+        if (!mongoURI) {
+            console.error('MONGO_URI is not defined in the environment variables');
+            return;
+        }
+
+        // الاتصال بقاعدة البيانات بدون الخيارات القديمة
+        await mongoose.connect(mongoURI);
+
+        console.log('Database connection established successfully');
+    } catch (error) {
+        console.error('Database connection error:', error.message);
+    }
+};
+
+connectToDatabase();

@@ -81,8 +81,22 @@ const loginUser = async (req, res) => {
     }
 };
 
+const getUserProfile = async (req, res) => {
+    try {
+        // جلب بيانات المستخدم باستخدام الـ userId من الـ JWT (الذي يتم تخزينه في req.user)
+        const user = await User.findById(req.user._id);
+                if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+        return res.json(user);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: "Server error" });
+    }
+};
+
 // تحديث الملف الشخصي
-const updateProfile = async (req, res) => {
+const updateUserProfile = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -196,7 +210,8 @@ const unlockUserAccount = async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
-    updateProfile,
+    getUserProfile,
+    updateUserProfile,
     logoutUser,
     logoutAllUser,
     deleteAccount,

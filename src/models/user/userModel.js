@@ -1,14 +1,17 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 
-// تعريف هيكل البيانات (Schema)
 const userSchema = new mongoose.Schema({
     mobile: {
         type: String,
         required: true,
-        minlength: 8,
-        maxlength: 8,
         unique: true,
+        validate: {
+            validator: function (v) {
+                return /^[0-9]{8}$/.test(v);
+            },
+            message: props => `${props.value} ليس رقم هاتف صالحًا!`
+        }
     },
     email: {
         type: String,
@@ -16,101 +19,98 @@ const userSchema = new mongoose.Schema({
         unique: true,
         lowercase: true,
         trim: true,
+        validate: {
+            validator: function (v) {
+                return /^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(v);
+            },
+            message: props => `${props.value} ليس بريدًا إلكترونيًا صالحًا!`
+        }
     },
     password: {
         type: String,
         required: true,
-        minlength: 8
+        validate: {
+            validator: function (v) {
+                return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).{8,}$/.test(v);
+            },
+            message: 'كلمة المرور يجب أن تحتوي على 8 أحرف على الأقل، بما في ذلك حرف كبير، حرف صغير، رقم، ورمز خاص!'
+        }
     },
-    // إضافة حقل جديد مع قيمة افتراضية
     role: {
         type: String,
-        enum: ['user', 'admin', 'owner'], // تحديد نوع المستخدم (إما مستخدم عادي أو مسؤول)
-        default: 'user', // القيمة الافتراضية هي "مستخدم عادي"
+        enum: ['user', 'admin', 'owner'],
+        default: 'user',
     },
     balance: {
         type: Number,
         default: 10
     },
-    tokens: [{ type: String }], // حقل للتوكنات المخزنة
-
-    // الحقول الجديدة
+    tokens: [{ type: String }],
     failedLoginAttempts: {
         type: Number,
-        default: 0 // عدد المحاولات الفاشلة
+        default: 0
     },
     lockUntil: {
         type: Date,
-        default: null // الوقت الذي سيبقى فيه الحساب مغلقًا إذا كانت المحاولات الفاشلة أكثر من الحد
+        default: null
     },
     lastLogin: {
         type: Date,
-        default: null // تخزين آخر وقت تم فيه تسجيل الدخول
+        default: null
     },
-    // الحد الأقصى للمحاولات الفاشلة قبل القفل
     loginAttemptsLimit: {
         type: Number,
-        default: 5 // الحد الأقصى للمحاولات الفاشلة (يمكن تغييره حسب الحاجة)
+        default: 5
     },
     accountLocked: {
         type: Boolean,
-        default: false // إذا كانت الحساب مقفلًا بسبب المحاولات الفاشلة
+        default: false
     }
-},
-    { timestamps: true } // ستضيف `createdAt` و `updatedAt` تلقائيًا
-);
+}, { timestamps: true });
 
-// تشفير كلمة المرور قبل حفظها في قاعدة البيانات
 userSchema.pre('save', async function (next) {
-    const user = this;
-
-    // إذا كانت الكلمة المرور غير معدلة (أي لا تحتاج إلى تشفير جديد)، فلا حاجة للتشفير مرة أخرى
-    if (!user.isModified('password')) {
-        return next();
-    }
-
+    if (!this.isModified('password')) return next();
     try {
-        // توليد كلمة مرور مشفرة باستخدام bcrypt (مع 10 دورات)
         const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
+        this.password = await bcrypt.hash(this.password, salt);
         next();
     } catch (err) {
         next(err);
     }
 });
 
-// إضافة دالة للتحقق من كلمة المرور عند تسجيل الدخول
 userSchema.methods.isValidPassword = async function (password) {
-    try {
-        return await bcrypt.compare(password, this.password);
-    } catch (err) {
-        throw err;
-    }
+    return await bcrypt.compare(password, this.password);
 };
 
-// تحديث الحقل failedLoginAttempts بعد محاولة تسجيل الدخول فاشلة
 userSchema.methods.incrementFailedLoginAttempts = async function () {
     this.failedLoginAttempts += 1;
-
-    // إذا وصل عدد المحاولات الفاشلة إلى الحد الأقصى، يتم قفل الحساب بشكل دائم
     if (this.failedLoginAttempts >= this.loginAttemptsLimit) {
         this.accountLocked = true;
     }
-
     await this.save();
 };
 
-// تحديث الحقل lastLogin عند تسجيل الدخول بنجاح
 userSchema.methods.updateLastLogin = async function () {
     this.lastLogin = new Date();
-    this.failedLoginAttempts = 0; // إعادة تعيين المحاولات الفاشلة بعد تسجيل الدخول الناجح
-    this.lockUntil = null; // إعادة تعيين حالة القفل
-    this.accountLocked = false; // إعادة تعيين القفل الدائم
+    this.failedLoginAttempts = 0;
+    this.lockUntil = null;
+    this.accountLocked = false;
     await this.save();
 };
 
-// إنشاء نموذج مستخدم باستخدام الـ Schema
-const User = mongoose.model('User', userSchema);
+userSchema.methods.isAccountLocked = function () {
+    return this.accountLocked || (this.lockUntil && this.lockUntil > Date.now());
+};
 
-// تصدير النموذج
+userSchema.methods.unlockAccount = async function () {
+    if (this.lockUntil && this.lockUntil < Date.now()) {
+        this.failedLoginAttempts = 0;
+        this.lockUntil = null;
+        this.accountLocked = false;
+        await this.save();
+    }
+};
+
+const User = mongoose.model('User', userSchema);
 module.exports = User;

@@ -1,18 +1,24 @@
 // checkRole.js
 const checkRole = (roles) => {
     return (req, res, next) => {
-        // التحقق من أن المستخدم موجود في الـ request (من الـ JWT)
-        if (!req.user) {
-            return res.status(403).json({ message: 'Forbidden: User not authenticated.' });
-        }
+        try {
+            // التحقق من وجود المستخدم في الطلب (JWT)
+            if (!req.user) {
+                return res.status(401).json({ message: 'Unauthorized: User not authenticated.' });
+            }
 
-        // التحقق إذا كان دور المستخدم موجود في قائمة الأدوار المقبولة
-        if (!roles.some(role => req.user.role === role)) {
-            return res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource.' });
-        }
+            // التحقق مما إذا كان دور المستخدم من ضمن الأدوار المسموح بها
+            if (!roles.includes(req.user.role)) {
+                return res.status(403).json({ 
+                    message: `Forbidden: You need one of these roles [${roles.join(', ')}] to access this resource.` 
+                });
+            }
 
-        next(); // إذا تم التحقق بنجاح، ننتقل إلى الـ Controller
+            next(); // السماح بالوصول إذا كان المستخدم لديه الصلاحية
+        } catch (error) {
+            res.status(500).json({ message: 'Server error while checking role', error: error.message });
+        }
     };
 };
 
-module.exports = checkRole; // تصدير الدالة بشكل مباشر
+module.exports = checkRole;

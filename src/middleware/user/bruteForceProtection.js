@@ -15,8 +15,17 @@ const loginLimiter = rateLimit({
     message: 'Too many login attempts, please try again later.',
 });
 
+// middleware/bruteForceProtection.js
+
+const updateProfileLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 دقائق
+    max: 3, // الحد الأقصى 3 محاولات
+    message: 'Too many attempts to update profile, please try again later.',
+});
+
 // تصدير الـ middleware
 module.exports = {
     registerLimiter,
-    loginLimiter
+    loginLimiter,
+    updateProfileLimiter
 };

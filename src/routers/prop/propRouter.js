@@ -44,7 +44,15 @@ router.patch(
     propController.deactivateProp  // استدعاء دالة تعطيل الإعلان
 );
 
-// 6. استعراض جميع الإعلانات
+// 6. إعادة تفعيل الإعلان بعد انتهاء الصلاحية
+router.patch(
+    '/reactivate/:id',
+    verifyToken,  // التأكد من أن المستخدم مسجل دخول
+    checkRole(['admin', 'owner']),  // التأكد من الصلاحيات
+    propController.reActivateProp  // استدعاء دالة إعادة تفعيل الإعلان
+);
+
+// 7. استعراض جميع الإعلانات
 router.get(
     '/',
     verifyToken,  // التأكد من أن المستخدم مسجل دخول
@@ -52,20 +60,12 @@ router.get(
     propController.getAllProps  // استدعاء دالة استعراض الإعلانات
 );
 
-// 7. استعراض إعلان معين
+// 8. استعراض إعلان معين
 router.get(
     '/:id',
     verifyToken,  // التأكد من أن المستخدم مسجل دخول
     checkRole(['user', 'admin', 'owner']),  // التأكد من الصلاحيات
     propController.getPropById  // استدعاء دالة استعراض الإعلان
-);
-
-// 8. إعادة تفعيل الإعلان بعد انتهاء الصلاحية
-router.patch(
-    '/reactivate/:id',
-    verifyToken,  // التأكد من أن المستخدم مسجل دخول
-    checkRole(['admin', 'owner']),  // التأكد من الصلاحيات
-    propController.reActivateProp  // استدعاء دالة إعادة تفعيل الإعلان
 );
 
 // 9. مسار البحث باستخدام الفلاتر
@@ -76,20 +76,20 @@ router.post(
     propController.searchProps  // استدعاء دالة البحث
 );
 
-// 10. استرجاع جميع الإعلانات المميزة
-router.get(
-    '/prop/featured',
-    verifyToken,  // التأكد من أن المستخدم مسجل دخول
-    checkRole(['admin', 'owner']),  // التأكد من الصلاحيات
-    propController.getFeaturedProps  // استدعاء دالة استرجاع الإعلانات المميزة
-);
-
-// 11. تفعيل أو تعطيل الإعلان كمميز
+// 10. تفعيل أو تعطيل الإعلان كمميز
 router.put(
     '/prop/feature/:id',
     verifyToken,  // التأكد من أن المستخدم مسجل دخول
     checkRole(['admin', 'owner']),  // التأكد من الصلاحيات
     propController.featureProp  // استدعاء دالة تفعيل أو تعطيل الإعلان كمميز
+);
+
+// 11. استرجاع جميع الإعلانات المميزة
+router.get(
+    '/prop/featured',
+    verifyToken,  // التأكد من أن المستخدم مسجل دخول
+    checkRole(['admin', 'owner']),  // التأكد من الصلاحيات
+    propController.getFeaturedProps  // استدعاء دالة استرجاع الإعلانات المميزة
 );
 
 // 12. استعراض الإعلانات الخاصة بالمستخدم نفسه
@@ -99,6 +99,5 @@ router.get(
     checkRole(['user', 'admin', 'owner']),  // التأكد من الصلاحيات
     propController.getUserProps  // استدعاء دالة استرجاع الإعلانات الخاصة بالمستخدم
 );
-
 
 module.exports = router;

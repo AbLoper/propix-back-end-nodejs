@@ -1,36 +1,42 @@
 const cron = require('node-cron');
-const Prop = require('../../models/prop/propModel');  // تأكد من مسار الـ model الخاص بك
-const User = require('../../models/user/userModel');  // تأكد من مسار الـ model الخاص بك
+const User = require('../../models/user/userModel');
+const Prop = require('../../models/prop/propModel');
 
-// جدولة فحص الإعلانات كل يوم عند منتصف الليل
+// تحديد المهمة باستخدام الجدولة الجديدة
 cron.schedule('0 0 * * *', async () => {
     try {
-        // ابحث عن الإعلانات التي انتهت فترة صلاحيتها وتحتاج إلى إعادة تفعيل تلقائي
+        // البحث عن الإعلانات التي انتهت فترة صلاحيتها
         const expiredProps = await Prop.find({
             expirydate: { $lt: new Date() },
-            autoRenew: true,
-            status: 'مفعل'
+            autoRepost: true,
+            status: 'active'
         });
 
-        expiredProps.forEach(async (prop) => {
-            // تحقق من رصيد المستخدم
+        const updatePromises = expiredProps.map(async (prop) => {
             const user = await User.findById(prop.createdBy);
-            if (user.balance >= prop.price) {
-                // إعادة نشر الإعلان وتحديث تاريخ الانتهاء (إضافة 3 أشهر مثلاً)
-                prop.expirydate = new Date(Date.now() + 3 * 30 * 24 * 60 * 60 * 1000); // 3 أشهر
-                prop.status = 'مفعل';
-                await user.save(); // خصم المبلغ من رصيد المستخدم
-                await prop.save(); // حفظ التعديلات
+            if (!user) {
+                console.log(`المستخدم مع ID ${prop.createdBy} غير موجود`);
+                return;
+            }
 
-                console.log(`تم إعادة نشر الإعلان: ${prop.id}`);
-            } else {
-                // إذا كان رصيد المستخدم غير كافٍ، تعطيل الإعلان
-                prop.status = 'معطل';
+            // التحقق من رصيد المستخدم وإعادة تفعيل الإعلان
+            if (user.balance >= prop.price.amount) {
+                user.balance -= prop.price.amount;
+                prop.expirydate = new Date(Date.now() + 3 * 30 * 24 * 60 * 60 * 1000);  // تمديد صلاحية الإعلان لثلاثة أشهر
+                prop.status = 'active';
+
+                await user.save();
                 await prop.save();
-
-                console.log(`تم تعطيل الإعلان: ${prop.id} بسبب نقص الرصيد`);
+                console.log(`تم إعادة نشر الإعلان: ${prop.adNumber}`);
+            } else {
+                prop.status = 'inactive';
+                await prop.save();
+                console.log(`تم تعطيل الإعلان: ${prop.adNumber} بسبب نقص الرصيد`);
             }
         });
+
+        // انتظار الانتهاء من كافة التحديثات
+        await Promise.all(updatePromises);
     } catch (err) {
         console.error('حدث خطأ في جدولة إعادة نشر الإعلانات:', err);
     }
