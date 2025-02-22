@@ -1,37 +1,19 @@
 const jwt = require('jsonwebtoken');
 
-const verifyToken = async (req, res, next) => {
-    let token;
-
-    // البحث عن التوكن في الهيدرات أو الجلسة
-    token = req.header('Authorization')?.replace('Bearer ', '') ||
-            req.header('x-auth-token') ||
-            (req.session ? req.session.token : null);
-
-    // التحقق مما إذا كان التوكن غير موجود
-    if (!token) {
-        return res.status(401).json({ msg: "Unauthorized: No token provided" });
-    }
-
-    // التحقق مما إذا كان متغير البيئة `JWT_SECRET` معرفًا
-    if (!process.env.JWT_SECRET) {
-        console.error("JWT_SECRET is not defined in environment variables");
-        return res.status(500).json({ msg: "Internal server error" });
-    }
-
+const userAuth = async (req, res, next) => {
     try {
-        // فك تشفير التوكن والتحقق منه
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const token = req.header('Authorization')?.replace('Bearer ', ''); // استخراج التوكن من الهيدر
+        if (!token) {
+            return res.status(401).json({ message: 'Authorization token is missing' });
+        }
 
-        // إضافة بيانات المستخدم إلى الطلب
-        req.user = decoded.user;
-
-        // الانتقال إلى الميدلوير التالي
+        const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY); // التحقق من التوكن باستخدام الـ secret
+        req.user = decoded;  // إضافة معلومات المستخدم إلى req.user
+        req.token = token;   // إضافة التوكن إلى req.token
         next();
-    } catch (err) {
-        console.error("JWT verification error:", err.message);
-        return res.status(401).json({ msg: "Unauthorized: Invalid token" });
+    } catch (error) {
+        res.status(401).json({ message: 'Invalid or expired token' });
     }
 };
 
-module.exports = verifyToken;
+module.exports = userAuth;

@@ -1,4 +1,3 @@
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../../models/user/userModel');
 const { validationResult } = require('express-validator');
@@ -57,8 +56,12 @@ const loginUser = async (req, res) => {
 
         // توليد توكن JWT عند نجاح عملية تسجيل الدخول
         const token = jwt.sign(
-            { userId: user._id, email: user.email },
-            process.env.JWT_SECRET,  
+            {
+                id: user._id,
+                email: user.email,
+                role: user.role
+            },
+            process.env.JWT_SECRET_KEY,
             { expiresIn: '1h' }
         );
 
@@ -68,7 +71,7 @@ const loginUser = async (req, res) => {
 
         res.status(200).json({
             message: 'Login successful',
-            token: token, 
+            token: token,
             userId: user._id,
             mobile: user.mobile,
             email: user.email,
@@ -83,15 +86,22 @@ const loginUser = async (req, res) => {
 
 const getUserProfile = async (req, res) => {
     try {
-        // جلب بيانات المستخدم باستخدام الـ userId من الـ JWT (الذي يتم تخزينه في req.user)
-        const user = await User.findById(req.user._id);
-                if (!user) {
-            return res.status(404).json({ message: "User not found" });
+
+        const userId = req.user?.id;
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID not found in request' });
         }
-        return res.json(user);
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        return res.json(user);  // إرجاع بيانات المستخدم في الاستجابة
+
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: "Server error" });
+        console.error('Error fetching user profile:', error.message);
+        res.status(500).json({ message: 'Server error while fetching profile', error: error.message });
     }
 };
 
@@ -105,7 +115,7 @@ const updateUserProfile = async (req, res) => {
     const { email, mobile, password, currentPassword } = req.body;
 
     try {
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -129,15 +139,25 @@ const updateUserProfile = async (req, res) => {
 // تسجيل الخروج
 const logoutUser = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        // تحقق من التوكن المستلم
+        console.log('Received token:', req.token);
+
+        // العثور على المستخدم باستخدام الـ ID
+        const user = await User.findById(req.user.id);
+
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
 
+        // تحقق من التوكنات المخزنة في قاعدة البيانات
+        console.log('User tokens:', user.tokens);
+
+        // تحقق من تطابق التوكنات
         if (!user.tokens.includes(req.token)) {
             return res.status(401).json({ message: 'Token mismatch, unable to logout' });
         }
 
+        // إزالة التوكن من قائمة التوكنات
         user.tokens = user.tokens.filter(token => token !== req.token);
         await user.save();
 
@@ -150,7 +170,7 @@ const logoutUser = async (req, res) => {
 // تسجيل الخروج من جميع الأجهزة
 const logoutAllUser = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -167,7 +187,7 @@ const logoutAllUser = async (req, res) => {
 // حذف الحساب
 const deleteAccount = async (req, res) => {
     try {
-        const user = await User.findById(req.user._id);
+        const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
@@ -183,6 +203,7 @@ const deleteAccount = async (req, res) => {
 // فك قفل الحساب
 const unlockUserAccount = async (req, res) => {
     const { email } = req.body; // أخذ البريد الإلكتروني من الطلب
+
     try {
         const user = await User.findOne({ email }); // البحث عن المستخدم باستخدام البريد الإلكتروني
         if (!user) {
@@ -215,5 +236,5 @@ module.exports = {
     logoutUser,
     logoutAllUser,
     deleteAccount,
-    unlockUserAccount  // تصدير الدالة الجديدة
+    unlockUserAccount
 };

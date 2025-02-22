@@ -45,7 +45,9 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 10
     },
-    tokens: [{ type: String }],
+    tokens: [{
+        type: String
+    }],
     failedLoginAttempts: {
         type: Number,
         default: 0
@@ -60,7 +62,7 @@ const userSchema = new mongoose.Schema({
     },
     loginAttemptsLimit: {
         type: Number,
-        default: 5
+        default: 3 // الحد الأقصى لمحاولات تسجيل الدخول الفاشلة 3
     },
     accountLocked: {
         type: Boolean,
@@ -68,6 +70,7 @@ const userSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+// دالة التشفير قبل الحفظ
 userSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
     try {
@@ -79,36 +82,49 @@ userSchema.pre('save', async function (next) {
     }
 });
 
+// دالة للتحقق من صحة كلمة المرور
 userSchema.methods.isValidPassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 };
 
+// دالة لزيادة عدد محاولات تسجيل الدخول الفاشلة
 userSchema.methods.incrementFailedLoginAttempts = async function () {
     this.failedLoginAttempts += 1;
     if (this.failedLoginAttempts >= this.loginAttemptsLimit) {
         this.accountLocked = true;
+        this.lockUntil = Date.now() + 5 * 60 * 1000; // قفل الحساب لمدة 5 دقائق
+        console.log('Your account is locked due to multiple failed login attemps. Please try again within 5 minutes.');
     }
     await this.save();
 };
 
+// دالة لتحديث وقت آخر تسجيل دخول
 userSchema.methods.updateLastLogin = async function () {
     this.lastLogin = new Date();
     this.failedLoginAttempts = 0;
     this.lockUntil = null;
     this.accountLocked = false;
     await this.save();
+    console.log('تم تسجيل الدخول بنجاح!');
 };
 
+// دالة للتحقق مما إذا كان الحساب مقفلًا
 userSchema.methods.isAccountLocked = function () {
-    return this.accountLocked || (this.lockUntil && this.lockUntil > Date.now());
+    if (this.accountLocked && this.lockUntil > Date.now()) {
+        console.log('Your account is locked due to multiple failed login attemps. Please try again within 5 minutes.');
+        return true;
+    }
+    return false;
 };
 
+// دالة لفك قفل الحساب
 userSchema.methods.unlockAccount = async function () {
     if (this.lockUntil && this.lockUntil < Date.now()) {
         this.failedLoginAttempts = 0;
         this.lockUntil = null;
         this.accountLocked = false;
         await this.save();
+        console.log('تم استعادة الحساب بنجاح!');
     }
 };
 
