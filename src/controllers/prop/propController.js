@@ -1,220 +1,192 @@
 const Prop = require('../../models/prop/propModel');
 const User = require('../../models/user/userModel');
-const mongoose = require('mongoose');
+const jsend = require('jsend');
 
 // 1. دالة إضافة إعلان جديد
-createProp = async (req, res) => {
-    try {
-        const {
-            title,
-            description,
-            price,
-            location,
-            imageUrl,
-            type,
-            featured
-        } = req.body;
+const createProp = async (req, res) => {
+    const { price, type, description, expirydate } = req.body;
 
-        // تحقق من أن البيانات المطلوبة موجودة
-        if (!title || !price || !location) {
-            return res.status(400).json({ message: 'يرجى ملء جميع الحقول المطلوبة.' });
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json(jsend.error({ message: 'المستخدم غير موجود' }));
         }
 
-        if (isNaN(price)) {
-            return res.status(400).json({ message: 'يجب أن يكون السعر رقمًا صالحًا.' });
+        if (user.balance < price.amount) {
+            return res.status(400).json(jsend.error({ message: 'رصيد المستخدم غير كافٍ' }));
         }
 
         const newProp = new Prop({
-            title,
-            description: description || '', // إذا لم يتم تقديم وصف، نتركه فارغًا
+            createdBy: user.id,
             price,
-            location,
-            imageUrl: imageUrl || '', // إذا لم يتم تقديم رابط الصورة، نتركه فارغًا
-            type: type || 'sale', // نوع الإعلان افتراضيًا 'بيع'
-            featured: featured || false,
-            owner: req.user._id, // مستخدم الذي أضاف الإعلان
-            createdAt: new Date(),
-            updatedAt: new Date()
+            type,
+            description,
+            expirydate,
+            status: 'active',
         });
 
-        const savedProp = await newProp.save();
-        return res.status(201).json({ message: 'تم إضافة الإعلان بنجاح', prop: savedProp });
+        await newProp.save();
+
+        // خصم الرصيد
+        user.balance -= price.amount;
+        await user.save();
+
+        return res.status(201).json(jsend.success({ message: 'تم إضافة الإعلان بنجاح', data: newProp }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء إضافة الإعلان', error: error.message });
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء إضافة الإعلان' }));
     }
 };
 
-
 // 2. دالة تعديل إعلان
-updateProp = async (req, res) => {
+const updateProp = async (req, res) => {
+    const { price, type, description, expirydate } = req.body;
+
     try {
-        const {
-            title,
-            description,
-            price,
-            location,
-            imageUrl,
-            type,
-            featured
-        } = req.body;
-
-        const propId = req.params.id;
-
-        const prop = await Prop.findById(propId);
-
+        const prop = await Prop.findById(req.params.id);
         if (!prop) {
-            return res.status(404).json({ message: 'الإعلان غير موجود' });
+            return res.status(404).json(jsend.error({ message: 'الإعلان غير موجود' }));
         }
 
-        // تحقق من أن المستخدم هو مالك الإعلان أو لديه صلاحية الإدارة
-        if (prop.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-            return res.status(403).json({ message: 'ليس لديك صلاحية لتعديل هذا الإعلان' });
+        // التحقق من الأدوار
+        if (prop.createdBy.toString() !== req.user.id && !req.user.roles.includes('admin')) {
+            return res.status(403).json(jsend.error({ message: 'ليس لديك صلاحيات لتعديل هذا الإعلان' }));
         }
 
-        // تحديث الحقول التي تم تقديمها فقط
-        if (title) prop.title = title;
-        if (description) prop.description = description;
-        if (price && !isNaN(price)) prop.price = price;
-        if (location) prop.location = location;
-        if (imageUrl) prop.imageUrl = imageUrl;
-        if (type) prop.type = type;
-        if (featured !== undefined) prop.featured = featured;
+        prop.price = price;
+        prop.type = type;
+        prop.description = description;
+        prop.expirydate = expirydate;
 
-        // تحديث تاريخ التعديل
-        prop.updatedAt = new Date();
+        await prop.save();
 
-        const updatedProp = await prop.save();
-        return res.status(200).json({ message: 'تم تعديل الإعلان بنجاح', prop: updatedProp });
+        return res.status(200).json(jsend.success({ message: 'تم تعديل الإعلان بنجاح', data: prop }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء تعديل الإعلان', error: error.message });
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء تعديل الإعلان' }));
     }
 };
 
 // 3. دالة حذف إعلان
-deleteProp = async (req, res) => {
+const deleteProp = async (req, res) => {
     try {
-        const propId = req.params.id;
-
-        const prop = await Prop.findById(propId);
-
+        const prop = await Prop.findById(req.params.id);
         if (!prop) {
-            return res.status(404).json({ message: 'الإعلان غير موجود' });
+            return res.status(404).json(jsend.error({ message: 'الإعلان غير موجود' }));
         }
 
-        // تحقق من أن المستخدم هو مالك الإعلان أو لديه صلاحية الإدارة
-        if (prop.owner.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-            return res.status(403).json({ message: 'ليس لديك صلاحية لحذف هذا الإعلان' });
+        // التحقق من الأدوار
+        if (prop.createdBy.toString() !== req.user.id && !req.user.roles.includes('admin')) {
+            return res.status(403).json(jsend.error({ message: 'ليس لديك صلاحيات لحذف هذا الإعلان' }));
         }
 
         await prop.remove();
-        return res.status(200).json({ message: 'تم حذف الإعلان بنجاح' });
+        return res.status(200).json(jsend.success({ message: 'تم حذف الإعلان بنجاح' }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء حذف الإعلان', error: error.message });
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء حذف الإعلان' }));
     }
 };
 
 // 4. دالة تفعيل إعلان
-activateProp = async (req, res) => {
+activateProp = async (req, res, next) => {
     try {
         const propId = req.params.id;
         const prop = await Prop.findById(propId);
 
         if (!prop) {
-            return res.status(404).json({ message: 'الإعلان غير موجود' });
+            return res.status(404).json(jsend.fail({ message: 'الإعلان غير موجود' }));
         }
 
         // تحقق من الصلاحيات
         if (req.user.role !== 'admin' && req.user.role !== 'owner') {
-            return res.status(403).json({ message: 'ليس لديك صلاحية لتفعيل هذا الإعلان' });
+            return res.status(403).json(jsend.fail({ message: 'ليس لديك صلاحية لتفعيل هذا الإعلان' }));
         }
 
         prop.status = 'active';
         const updatedProp = await prop.save();
-        return res.status(200).json({ message: 'تم تفعيل الإعلان بنجاح', prop: updatedProp });
+        return res.status(200).json(jsend.success({ message: 'تم تفعيل الإعلان بنجاح', prop: updatedProp }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء تفعيل الإعلان', error: error.message });
+        next(error);  // استخدم next لتحويل الخطأ إلى معالج الأخطاء في middleware
     }
 };
 
 // 5. دالة تعطيل إعلان
-deactivateProp = async (req, res) => {
+deactivateProp = async (req, res, next) => {
     try {
         const propId = req.params.id;
         const prop = await Prop.findById(propId);
 
         if (!prop) {
-            return res.status(404).json({ message: 'الإعلان غير موجود' });
+            return res.status(404).json(jsend.fail({ message: 'الإعلان غير موجود' }));
         }
 
         // تحقق من الصلاحيات
         if (req.user.role !== 'admin' && req.user.role !== 'owner') {
-            return res.status(403).json({ message: 'ليس لديك صلاحية لتعطيل هذا الإعلان' });
+            return res.status(403).json(jsend.fail({ message: 'ليس لديك صلاحية لتعطيل هذا الإعلان' }));
         }
 
         prop.status = 'inactive';
         const updatedProp = await prop.save();
-        return res.status(200).json({ message: 'تم تعطيل الإعلان بنجاح', prop: updatedProp });
+        return res.status(200).json(jsend.success({ message: 'تم تعطيل الإعلان بنجاح', prop: updatedProp }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء تعطيل الإعلان', error: error.message });
+        next(error);
     }
 };
 
 // 6. دالة إعادة تفعيل إعلان
-reActivateProp = async (req, res) => {
+reActivateProp = async (req, res, next) => {
     try {
         const propId = req.params.id;
         const prop = await Prop.findById(propId);
 
         if (!prop) {
-            return res.status(404).json({ message: 'الإعلان غير موجود' });
+            return res.status(404).json(jsend.fail({ message: 'الإعلان غير موجود' }));
         }
 
         // تحقق من الصلاحيات
         if (req.user.role !== 'admin' && req.user.role !== 'owner') {
-            return res.status(403).json({ message: 'ليس لديك صلاحية لإعادة تفعيل هذا الإعلان' });
+            return res.status(403).json(jsend.fail({ message: 'ليس لديك صلاحية لإعادة تفعيل هذا الإعلان' }));
         }
 
         prop.status = 'active';
         const updatedProp = await prop.save();
-        return res.status(200).json({ message: 'تم إعادة تفعيل الإعلان بنجاح', prop: updatedProp });
+        return res.status(200).json(jsend.success({ message: 'تم إعادة تفعيل الإعلان بنجاح', prop: updatedProp }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء إعادة تفعيل الإعلان', error: error.message });
+        next(error);
     }
 };
 
 // 7. دالة استرجاع جميع الإعلانات
-getAllProps = async (req, res) => {
+getAllProps = async (req, res, next) => {
     try {
         const props = await Prop.find().populate('owner', 'name email');
 
         if (props.length === 0) {
-            return res.status(404).json({ message: 'لا توجد إعلانات حالياً' });
+            return res.status(404).json(jsend.fail({ message: 'لا توجد إعلانات حالياً' }));
         }
 
-        return res.status(200).json({ message: 'تم استرجاع الإعلانات بنجاح', props });
+        return res.status(200).json(jsend.success({ message: 'تم استرجاع الإعلانات بنجاح', props }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء استرجاع الإعلانات', error: error.message });
+        next(error);
     }
 };
 
 // 8. دالة استرجاع إعلان معين
-getPropById = async (req, res) => {
+getPropById = async (req, res, next) => {
     try {
         const propId = req.params.id;
         const prop = await Prop.findById(propId).populate('owner', 'name email');
 
         if (!prop) {
-            return res.status(404).json({ message: 'الإعلان غير موجود' });
+            return res.status(404).json(jsend.fail({ message: 'الإعلان غير موجود' }));
         }
 
-        return res.status(200).json({ message: 'تم استرجاع الإعلان بنجاح', prop });
+        return res.status(200).json(jsend.success({ message: 'تم استرجاع الإعلان بنجاح', prop }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء استرجاع الإعلان', error: error.message });
+        next(error);
     }
 };
 
 // 9. دالة البحث باستخدام الفلاتر
-searchProps = async (req, res) => {
+searchProps = async (req, res, next) => {
     try {
         const { location, price, type, featured } = req.body;
 
@@ -227,65 +199,65 @@ searchProps = async (req, res) => {
         const props = await Prop.find(filters);
 
         if (props.length === 0) {
-            return res.status(404).json({ message: 'لا توجد إعلانات تطابق الفلاتر المحددة' });
+            return res.status(404).json(jsend.fail({ message: 'لا توجد إعلانات تطابق الفلاتر المحددة' }));
         }
 
-        return res.status(200).json({ message: 'تم استرجاع الإعلانات بنجاح', props });
+        return res.status(200).json(jsend.success({ message: 'تم استرجاع الإعلانات بنجاح', props }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء البحث', error: error.message });
+        next(error);
     }
 };
 
 // 10. دالة تفعيل أو تعطيل الإعلان كمميز
-featureProp = async (req, res) => {
+featureProp = async (req, res, next) => {
     try {
         const propId = req.params.id;
         const prop = await Prop.findById(propId);
 
         if (!prop) {
-            return res.status(404).json({ message: 'الإعلان غير موجود' });
+            return res.status(404).json(jsend.fail({ message: 'الإعلان غير موجود' }));
         }
 
         // تحقق من الصلاحيات
         if (req.user.role !== 'admin' && req.user.role !== 'owner') {
-            return res.status(403).json({ message: 'ليس لديك صلاحية لتفعيل أو تعطيل الإعلان كمميز' });
+            return res.status(403).json(jsend.fail({ message: 'ليس لديك صلاحية لتفعيل أو تعطيل الإعلان كمميز' }));
         }
 
         prop.featured = !prop.featured;
         const updatedProp = await prop.save();
-        return res.status(200).json({ message: `تم ${prop.featured ? 'تفعيل' : 'تعطيل'} الإعلان كمميز بنجاح`, prop: updatedProp });
+        return res.status(200).json(jsend.success({ message: `تم ${prop.featured ? 'تفعيل' : 'تعطيل'} الإعلان كمميز بنجاح`, prop: updatedProp }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء تفعيل أو تعطيل الإعلان كمميز', error: error.message });
+        next(error);
     }
 };
 
 // 11. دالة استرجاع الإعلانات المميزة
-getFeaturedProps = async (req, res) => {
+getFeaturedProps = async (req, res, next) => {
     try {
         const props = await Prop.find({ featured: true }).populate('owner', 'name email');
 
         if (props.length === 0) {
-            return res.status(404).json({ message: 'لا توجد إعلانات مميزة حالياً' });
+            return res.status(404).json(jsend.fail({ message: 'لا توجد إعلانات مميزة حالياً' }));
         }
 
-        return res.status(200).json({ message: 'تم استرجاع الإعلانات المميزة بنجاح', props });
+        return res.status(200).json(jsend.success({ message: 'تم استرجاع الإعلانات المميزة بنجاح', props }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء استرجاع الإعلانات المميزة', error: error.message });
+        next(error);
     }
 };
 
 // 12. دالة استرجاع الإعلانات الخاصة بالمستخدم
-getUserProps = async (req, res) => {
+getUserProps = async (req, res, next) => {
     try {
         const props = await Prop.find({ owner: req.user._id });
 
         if (props.length === 0) {
-            return res.status(404).json({ message: 'ليس لديك أي إعلانات' });
+            return res.status(404).json(jsend.fail({ message: 'ليس لديك أي إعلانات' }));
         }
 
-        return res.status(200).json({ message: 'تم استرجاع الإعلانات الخاصة بك بنجاح', props });
+        return res.status(200).json(jsend.success({ message: 'تم استرجاع الإعلانات الخاصة بك بنجاح', props }));
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء استرجاع الإعلانات الخاصة بك', error: error.message });
+        next(error);
     }
 };
 

@@ -1,12 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../../models/user/userModel');
 const { validationResult } = require('express-validator');
+const jsend = require('jsend');  // استخدام مكتبة jsend لتوحيد الاستجابات
 
 // التسجيل
 const registerUser = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json(jsend.error({ errors: errors.array() }));
     }
 
     const { email, mobile, password } = req.body;
@@ -14,14 +15,14 @@ const registerUser = async (req, res) => {
     try {
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json({ message: 'Email already exists' });
+            return res.status(400).json(jsend.error({ message: 'Email already exists' }));
         }
 
         const user = new User({ email, mobile, password });
         await user.save();
-        res.status(201).json({ message: 'User registered successfully!' });
+        return res.status(201).json(jsend.success({ message: 'User registered successfully!' }));
     } catch (err) {
-        res.status(500).json({ message: 'Error registering user', error: err.message });
+        return res.status(500).json(jsend.error({ message: 'Error registering user', error: err.message }));
     }
 };
 
@@ -29,7 +30,7 @@ const registerUser = async (req, res) => {
 const loginUser = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json(jsend.error({ errors: errors.array() }));
     }
 
     const { email, password } = req.body;
@@ -37,18 +38,18 @@ const loginUser = async (req, res) => {
     try {
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json({ message: 'Invalid email or password' });
+            return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
         }
 
         // إذا كان الحساب مغلقًا بسبب المحاولات الفاشلة
         if (user.accountLocked) {
-            return res.status(403).json({ message: 'Your account is locked due to multiple failed login attempts.' });
+            return res.status(403).json(jsend.error({ message: 'Your account is locked due to multiple failed login attempts.' }));
         }
 
         const isPasswordValid = await user.isValidPassword(password);
         if (!isPasswordValid) {
             await user.incrementFailedLoginAttempts(); // زيادة المحاولات الفاشلة
-            return res.status(400).json({ message: 'Invalid email or password' });
+            return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
         }
 
         // تسجيل الدخول بنجاح
@@ -69,7 +70,7 @@ const loginUser = async (req, res) => {
         user.tokens.push(token);
         await user.save();
 
-        res.status(200).json({
+        return res.status(200).json(jsend.success({
             message: 'Login successful',
             token: token,
             userId: user._id,
@@ -77,31 +78,31 @@ const loginUser = async (req, res) => {
             email: user.email,
             role: user.role,
             balance: user.balance
-        });
+        }));
 
     } catch (err) {
-        res.status(500).json({ message: 'Error logging in', error: err.message });
+        return res.status(500).json(jsend.error({ message: 'Error logging in', error: err.message }));
     }
 };
 
+// الحصول على الملف الشخصي للمستخدم
 const getUserProfile = async (req, res) => {
     try {
-
         const userId = req.user?.id;
         if (!userId) {
-            return res.status(400).json({ message: 'User ID not found in request' });
+            return res.status(400).json(jsend.error({ message: 'User ID not found in request' }));
         }
 
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
 
-        return res.json(user);  // إرجاع بيانات المستخدم في الاستجابة
+        return res.json(jsend.success({ data: user }));  // إرجاع بيانات المستخدم في الاستجابة
 
     } catch (error) {
         console.error('Error fetching user profile:', error.message);
-        res.status(500).json({ message: 'Server error while fetching profile', error: error.message });
+        return res.status(500).json(jsend.error({ message: 'Server error while fetching profile', error: error.message }));
     }
 };
 
@@ -109,7 +110,7 @@ const getUserProfile = async (req, res) => {
 const updateUserProfile = async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json(jsend.error({ errors: errors.array() }));
     }
 
     const { email, mobile, password, currentPassword } = req.body;
@@ -117,11 +118,11 @@ const updateUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
 
         if (currentPassword && !(await user.isValidPassword(currentPassword))) {
-            return res.status(400).json({ message: 'Incorrect current password' });
+            return res.status(400).json(jsend.error({ message: 'Incorrect current password' }));
         }
 
         user.email = email || user.email;
@@ -130,9 +131,9 @@ const updateUserProfile = async (req, res) => {
 
         await user.save();
 
-        res.status(200).json({ message: 'Profile updated successfully' });
+        return res.status(200).json(jsend.success({ message: 'Profile updated successfully' }));
     } catch (err) {
-        res.status(500).json({ message: 'Error updating profile', error: err.message });
+        return res.status(500).json(jsend.error({ message: 'Error updating profile', error: err.message }));
     }
 };
 
@@ -146,7 +147,7 @@ const logoutUser = async (req, res) => {
         const user = await User.findById(req.user.id);
 
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
 
         // تحقق من التوكنات المخزنة في قاعدة البيانات
@@ -154,16 +155,16 @@ const logoutUser = async (req, res) => {
 
         // تحقق من تطابق التوكنات
         if (!user.tokens.includes(req.token)) {
-            return res.status(401).json({ message: 'Token mismatch, unable to logout' });
+            return res.status(401).json(jsend.error({ message: 'Token mismatch, unable to logout' }));
         }
 
         // إزالة التوكن من قائمة التوكنات
         user.tokens = user.tokens.filter(token => token !== req.token);
         await user.save();
 
-        res.status(200).json({ message: 'Logout successful' });
+        return res.status(200).json(jsend.success({ message: 'Logout successful' }));
     } catch (err) {
-        res.status(500).json({ message: 'Error logging out', error: err.message });
+        return res.status(500).json(jsend.error({ message: 'Error logging out', error: err.message }));
     }
 };
 
@@ -172,15 +173,15 @@ const logoutAllUser = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
 
         user.tokens = [];
         await user.save();
 
-        res.status(200).json({ message: 'Logged out from all devices' });
+        return res.status(200).json(jsend.success({ message: 'Logged out from all devices' }));
     } catch (err) {
-        res.status(500).json({ message: 'Error logging out from all devices', error: err.message });
+        return res.status(500).json(jsend.error({ message: 'Error logging out from all devices', error: err.message }));
     }
 };
 
@@ -189,14 +190,14 @@ const deleteAccount = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
 
         await user.deleteOne();
 
-        res.status(200).json({ message: 'Account deleted successfully' });
+        return res.status(200).json(jsend.success({ message: 'Account deleted successfully' }));
     } catch (err) {
-        res.status(500).json({ message: 'Error deleting account', error: err.message });
+        return res.status(500).json(jsend.error({ message: 'Error deleting account', error: err.message }));
     }
 };
 
@@ -207,12 +208,12 @@ const unlockUserAccount = async (req, res) => {
     try {
         const user = await User.findOne({ email }); // البحث عن المستخدم باستخدام البريد الإلكتروني
         if (!user) {
-            return res.status(404).json({ message: 'User not found' }); // إذا لم يتم العثور على المستخدم
+            return res.status(404).json(jsend.error({ message: 'User not found' })); // إذا لم يتم العثور على المستخدم
         }
 
         // التحقق من حالة القفل
         if (!user.accountLocked) {
-            return res.status(400).json({ message: 'Account is not locked' }); // إذا لم يكن الحساب مغلقًا
+            return res.status(400).json(jsend.error({ message: 'Account is not locked' })); // إذا لم يكن الحساب مغلقًا
         }
 
         // فك القفل
@@ -222,9 +223,9 @@ const unlockUserAccount = async (req, res) => {
 
         await user.save(); // حفظ التعديلات في قاعدة البيانات
 
-        res.status(200).json({ message: 'Account unlocked successfully' }); // إرسال استجابة ناجحة
+        return res.status(200).json(jsend.success({ message: 'Account unlocked successfully' })); // إرسال استجابة ناجحة
     } catch (err) {
-        res.status(500).json({ message: 'Error unlocking account', error: err.message }); // إرسال استجابة في حال وجود خطأ
+        return res.status(500).json(jsend.error({ message: 'Error unlocking account', error: err.message })); // إرسال استجابة في حال وجود خطأ
     }
 };
 

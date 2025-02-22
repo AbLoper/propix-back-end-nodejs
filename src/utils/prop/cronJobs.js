@@ -1,6 +1,7 @@
 const cron = require('node-cron');
 const User = require('../../models/user/userModel');
 const Prop = require('../../models/prop/propModel');
+const jsend = require('jsend');
 
 // تحديد المهمة باستخدام الجدولة الجديدة
 cron.schedule('0 0 * * *', async () => {
@@ -38,6 +39,8 @@ cron.schedule('0 0 * * *', async () => {
         // انتظار الانتهاء من كافة التحديثات
         await Promise.all(updatePromises);
     } catch (err) {
+        // استخدام jsend لإرجاع استجابة منسقة في حال حدوث خطأ
         console.error('حدث خطأ في جدولة إعادة نشر الإعلانات:', err);
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ في جدولة إعادة نشر الإعلانات', error: err }));
     }
 });

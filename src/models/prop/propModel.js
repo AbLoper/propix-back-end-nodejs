@@ -124,8 +124,14 @@ const propSchema = new mongoose.Schema(
         // 9. المرفقات والملفات
         images: {
             type: [String],
-            validate: { validator: (value) => value.length <= 5, message: 'لا يمكنك رفع أكثر من 5 صور لكل إعلان' },
+            validate: {
+                validator: (value) => {
+                    return value.length <= 5 && value.every(img => img.match(/\.(jpeg|jpg|png)$/));
+                },
+                message: 'يجب أن تكون الصور بصيغة JPEG أو PNG وألا تتجاوز 5 صور.',
+            },
         },
+
         notifications: [{
             type: String,
             message: String,

@@ -78,9 +78,11 @@ userSchema.pre('save', async function (next) {
         this.password = await bcrypt.hash(this.password, salt);
         next();
     } catch (err) {
-        next(err);
+        console.error('Error hashing password: ', err);
+        return next(err); // تمرير الخطأ للميدلوير
     }
 });
+
 
 // دالة للتحقق من صحة كلمة المرور
 userSchema.methods.isValidPassword = async function (password) {
@@ -111,11 +113,11 @@ userSchema.methods.updateLastLogin = async function () {
 // دالة للتحقق مما إذا كان الحساب مقفلًا
 userSchema.methods.isAccountLocked = function () {
     if (this.accountLocked && this.lockUntil > Date.now()) {
-        console.log('Your account is locked due to multiple failed login attemps. Please try again within 5 minutes.');
-        return true;
+        return jsend.error({ message: 'حسابك مقفل بسبب محاولات تسجيل الدخول الفاشلة. يرجى المحاولة بعد 5 دقائق.' });
     }
     return false;
 };
+
 
 // دالة لفك قفل الحساب
 userSchema.methods.unlockAccount = async function () {

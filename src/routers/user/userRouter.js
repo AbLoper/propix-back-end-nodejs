@@ -5,19 +5,20 @@ const userAuth = require('../../middleware/user/userAuth');
 const { registerLimiter, loginLimiter, updateProfileLimiter } = require('../../middleware/user/bruteForceProtection');
 const userController = require('../../controllers/user/userController');
 const checkRole = require('../../middleware/user/checkRole');
+const { validationErrors } = require('../../middleware/validationErrors');  // استيراد الميدل وير الجديد
 
 // مسار التسجيل
 router.post('/register', registerLimiter, [
     body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().isLowercase().withMessage('Email should be in lowercase').trim(),
     body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers'),
     body('password').matches(/^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[\]:;<>,.?/~_+\-=|\\]).{8,32}$/).withMessage('Password must meet complexity criteria')
-], userController.registerUser);
+], validationErrors, userController.registerUser);
 
 // مسار تسجيل الدخول
 router.post('/login', loginLimiter, [
     body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail(),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
-], userController.loginUser);
+], validationErrors, userController.loginUser);
 
 // مسار الحصول على صفحة المستخدم الشخصية
 router.get('/profile', userAuth, userController.getUserProfile);
@@ -27,7 +28,7 @@ router.patch('/update-profile', userAuth, updateProfileLimiter, [
     body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().isLowercase().withMessage('Email should be in lowercase').trim(),
     body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers'),
     body('password').isLength({ min: 8, max: 16 }).withMessage('Password must between 8-16 characters long')
-], userController.updateUserProfile);
+], validationErrors, userController.updateUserProfile);
 
 // مسار تسجيل الخروج
 router.post('/logout', userAuth, userController.logoutUser);
