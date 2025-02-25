@@ -13,11 +13,14 @@ const propSchema = new mongoose.Schema(
             area: { type: String, required: true },
             street: { type: String, required: true },
             building: { type: Number, required: true },
+            floor: { type: Number, required: true },
+            apartment: { type: Number, required: true },
         },
 
         // 2. معلومات عن السعر
         price: {
             amount: { type: Number, required: true },
+            currency: { type: String, required: true, default: 'USD' },
         },
 
         // 3. المواصفات الأساسية
@@ -143,6 +146,11 @@ const propSchema = new mongoose.Schema(
         favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
         adNumber: { type: String, unique: true, required: true },
         isFeatured: { type: Boolean, default: false },  // الحقل الجديد هنا
+
+        approved: {
+            type: Boolean,
+            default: false, // يعكس الحالة المبدئية للإعلان
+        },
     },
     { timestamps: true }
 );

@@ -58,7 +58,7 @@ const userSchema = new mongoose.Schema({
     },
     lastLogin: {
         type: Date,
-        default: null
+        default: Date.now
     },
     loginAttemptsLimit: {
         type: Number,

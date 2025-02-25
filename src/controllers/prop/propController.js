@@ -4,7 +4,9 @@ const jsend = require('jsend');
 
 // 1. دالة إضافة إعلان جديد
 const createProp = async (req, res) => {
-    const { price, type, description, expirydate } = req.body;
+    const {
+        propType, address, price, specification, features, financial, expirydate, status, isFeatured
+    } = req.body;
 
     try {
         const user = await User.findById(req.user.id);
@@ -18,11 +20,15 @@ const createProp = async (req, res) => {
 
         const newProp = new Prop({
             createdBy: user.id,
+            propType,
+            address,
             price,
-            type,
-            description,
+            specification,
+            features,
+            financial,
             expirydate,
-            status: 'active',
+            status: 'waiting',  // وضعه في حالة انتظار بشكل افتراضي
+            isFeatured: isFeatured || false, // إضافة الحقل isFeatured
         });
 
         await newProp.save();
@@ -39,7 +45,9 @@ const createProp = async (req, res) => {
 
 // 2. دالة تعديل إعلان
 const updateProp = async (req, res) => {
-    const { price, type, description, expirydate } = req.body;
+    const {
+        propType, address, price, specification, features, financial, expirydate, status, isFeatured
+    } = req.body;
 
     try {
         const prop = await Prop.findById(req.params.id);
@@ -52,10 +60,15 @@ const updateProp = async (req, res) => {
             return res.status(403).json(jsend.error({ message: 'ليس لديك صلاحيات لتعديل هذا الإعلان' }));
         }
 
+        prop.propType = propType;
+        prop.address = address;
         prop.price = price;
-        prop.type = type;
-        prop.description = description;
+        prop.specification = specification;
+        prop.features = features;
+        prop.financial = financial;
         prop.expirydate = expirydate;
+        prop.status = 'waiting'; // تغيير الحالة إلى "انتظار" إذا تم تعديل الإعلان بعد الموافقة عليه
+        prop.isFeatured = isFeatured !== undefined ? isFeatured : prop.isFeatured;
 
         await prop.save();
 
@@ -154,10 +167,11 @@ reActivateProp = async (req, res, next) => {
     }
 };
 
-// 7. دالة استرجاع جميع الإعلانات
+// 7. دالة استرجاع جميع الإعلانات (مقيد بصلاحيات "admin" أو "owner")
 getAllProps = async (req, res, next) => {
     try {
-        const props = await Prop.find().populate('owner', 'name email');
+        // إذا وصلنا لهذه النقطة، فهذا يعني أن المستخدم يملك صلاحية الوصول بسبب الـ middleware checkRole
+        const props = await Prop.find().populate('createdBy', 'name email'); // استخدام createdBy هنا بدل owner
 
         if (props.length === 0) {
             return res.status(404).json(jsend.fail({ message: 'لا توجد إعلانات حالياً' }));
@@ -173,7 +187,7 @@ getAllProps = async (req, res, next) => {
 getPropById = async (req, res, next) => {
     try {
         const propId = req.params.id;
-        const prop = await Prop.findById(propId).populate('owner', 'name email');
+        const prop = await Prop.findById(propId).populate('createdBy', 'name email'); // استخدام createdBy هنا بدل owner
 
         if (!prop) {
             return res.status(404).json(jsend.fail({ message: 'الإعلان غير موجود' }));
@@ -223,9 +237,9 @@ featureProp = async (req, res, next) => {
             return res.status(403).json(jsend.fail({ message: 'ليس لديك صلاحية لتفعيل أو تعطيل الإعلان كمميز' }));
         }
 
-        prop.featured = !prop.featured;
+        prop.isFeatured = !prop.isFeatured; // تغيير قيمة isFeatured
         const updatedProp = await prop.save();
-        return res.status(200).json(jsend.success({ message: `تم ${prop.featured ? 'تفعيل' : 'تعطيل'} الإعلان كمميز بنجاح`, prop: updatedProp }));
+        return res.status(200).json(jsend.success({ message: `تم ${prop.isFeatured ? 'تفعيل' : 'تعطيل'} الإعلان كمميز بنجاح`, prop: updatedProp }));
     } catch (error) {
         next(error);
     }
@@ -261,6 +275,21 @@ getUserProps = async (req, res, next) => {
     }
 };
 
+// 13. دالة استرجاع الإعلانات المعلقة
+getPendingProps = async (req, res, next) => {
+    try {
+        const pendingProps = await Prop.find({ status: 'waiting' }).populate('createdBy', 'name email');
+
+        if (pendingProps.length === 0) {
+            return res.status(404).json(jsend.fail({ message: 'لا توجد إعلانات معلقة حالياً' }));
+        }
+
+        return res.status(200).json(jsend.success({ message: 'تم استرجاع الإعلانات المعلقة بنجاح', props: pendingProps }));
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createProp,
     updateProp,
@@ -273,5 +302,6 @@ module.exports = {
     searchProps,
     featureProp,
     getFeaturedProps,
-    getUserProps
-}
+    getUserProps,
+    getPendingProps
+};
