@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const userAuth = require('../../middleware/user/userAuth');
-const { registerLimiter, loginLimiter, updateProfileLimiter } = require('../../middleware/user/bruteForceProtection');
+const { registerLimiter, loginLimiter, updateProfileLimiter } = require('../../utils/appProtections/user/bruteForceProtection');
 const userController = require('../../controllers/user/userController');
 const checkRole = require('../../middleware/user/checkRole');
 const { validationErrors } = require('../../middleware/validationErrors');  // استيراد الميدل وير الجديد
@@ -13,20 +13,6 @@ router.post('/register', registerLimiter, [
     body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers'),
     body('password').matches(/^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[\]:;<>,.?/~_+\-=|\\]).{8,32}$/).withMessage('Password must meet complexity criteria')
 ], validationErrors, userController.registerUser);
-
-router.post('/register', (req, res) => {
-    const { mobile, email, password, confirmPassword, acceptTerms } = req.body;
-    
-    // هنا يمكنك إضافة منطق التسجيل والتحقق من البيانات
-    if (!mobile || !email || !password || !confirmPassword) {
-      return res.status(400).json({ error: 'جميع الحقول مطلوبة' });
-    }
-    
-    // منطق التسجيل هنا
-    res.status(200).json({ message: 'تم التسجيل بنجاح' });
-  });
-  
-
 
 // مسار تسجيل الدخول
 router.post('/login', loginLimiter, [

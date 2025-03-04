@@ -1,5 +1,9 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
+const redis = require('../../utils/appProtections/user/redisClient'); // استيراد Redis client
+
+const LOGIN_ATTEMPTS_PREFIX = 'login_attempts:';
+
 
 const userSchema = new mongoose.Schema({
     mobile: {
@@ -89,6 +93,16 @@ userSchema.methods.isValidPassword = async function (password) {
     return await bcrypt.compare(password, this.password);
 };
 
+// دالة لتحديث وقت آخر تسجيل دخول
+userSchema.methods.updateLastLogin = async function () {
+    this.lastLogin = new Date();
+    this.failedLoginAttempts = 0;
+    this.lockUntil = null;
+    this.accountLocked = false;
+    await this.save();
+    console.log('تم تسجيل الدخول بنجاح!');
+};
+
 // دالة لزيادة عدد محاولات تسجيل الدخول الفاشلة
 userSchema.methods.incrementFailedLoginAttempts = async function () {
     this.failedLoginAttempts += 1;
@@ -98,16 +112,6 @@ userSchema.methods.incrementFailedLoginAttempts = async function () {
         console.log('Your account is locked due to multiple failed login attemps. Please try again within 5 minutes.');
     }
     await this.save();
-};
-
-// دالة لتحديث وقت آخر تسجيل دخول
-userSchema.methods.updateLastLogin = async function () {
-    this.lastLogin = new Date();
-    this.failedLoginAttempts = 0;
-    this.lockUntil = null;
-    this.accountLocked = false;
-    await this.save();
-    console.log('تم تسجيل الدخول بنجاح!');
 };
 
 // دالة للتحقق مما إذا كان الحساب مقفلًا

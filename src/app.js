@@ -1,4 +1,3 @@
-// استيراد المكتبات
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
@@ -29,7 +28,12 @@ if (!process.env.PORT) {
 }
 
 // تمكين CORS قبل باقي الميدلوير
-app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+app.use(cors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST'],
+    allowedHeaders: ['Content-Type']
+}));
 // app.use(cors({ origin: "*" })); // السماح لجميع المصادر
 // app.use(cors())
 
@@ -52,8 +56,8 @@ const userRouter = require('./routers/user/userRouter');
 const propRouter = require('./routers/prop/propRouter');
 
 // ربط المسارات بالموجهات
-app.use('/users', userRouter); // ربط المسارات الخاصة بالمستخدمين
-app.use('/props', propRouter); // ربط المسارات الخاصة بالعقارات
+app.use(userRouter); // ربط المسارات الخاصة بالمستخدمين
+app.use(propRouter); // ربط المسارات الخاصة بالعقارات
 
 // تمكين الوصول إلى الملفات المرفوعة
 app.use('/uploads', express.static('uploads'));
