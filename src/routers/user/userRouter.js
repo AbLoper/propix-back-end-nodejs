@@ -8,11 +8,11 @@ const checkRole = require('../../middleware/user/checkRole');
 const { validationErrors } = require('../../middleware/validationErrors');  // استيراد الميدل وير الجديد
 
 // مسار التسجيل
-// router.post('/register', registerLimiter, [
-//     body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().isLowercase().withMessage('Email should be in lowercase').trim(),
-//     body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers'),
-//     body('password').matches(/^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[\]:;<>,.?/~_+\-=|\\]).{8,32}$/).withMessage('Password must meet complexity criteria')
-// ], validationErrors, userController.registerUser);
+router.post('/register', registerLimiter, [
+    body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().isLowercase().withMessage('Email should be in lowercase').trim(),
+    body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers'),
+    body('password').matches(/^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[\]:;<>,.?/~_+\-=|\\]).{8,32}$/).withMessage('Password must meet complexity criteria')
+], validationErrors, userController.registerUser);
 
 router.post('/register', (req, res) => {
     const { mobile, email, password, confirmPassword, acceptTerms } = req.body;
