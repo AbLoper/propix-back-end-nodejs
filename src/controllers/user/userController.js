@@ -33,9 +33,9 @@ const loginUser = async (req, res) => {
         return res.status(400).json(jsend.error({ errors: errors.array() }));
     }
 
-    const { email, password } = req.body;
+    const { email, password } = req.body; console.log('email:', email, 'password:', password)
 
-    try {
+/*     try {
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
@@ -82,7 +82,7 @@ const loginUser = async (req, res) => {
 
     } catch (err) {
         return res.status(500).json(jsend.error({ message: 'Error logging in', error: err.message }));
-    }
+    } */
 };
 
 // الحصول على الملف الشخصي للمستخدم
@@ -237,5 +237,5 @@ module.exports = {
     logoutUser,
     logoutAllUser,
     deleteAccount,
-    unlockUserAccount
+    unlockUserAccount,
 };

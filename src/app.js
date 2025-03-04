@@ -1,3 +1,11 @@
+// استيراد المكتبات
+const express = require('express');
+const morgan = require('morgan');
+const cors = require('cors');
+
+// إنشاء تطبيق Express جديد
+const app = express();
+
 // استيراد الاتصال بقاعدة البيانات
 require('./database'); // هذه هي الطريقة التي تقوم بها بربط ملف database.js
 // استدعاء cronJobs.js
@@ -13,33 +21,42 @@ if (result.error) {
     console.log('Loaded .env file successfully');
 }
 
-const morgan = require('morgan');
-const cors = require('cors');
-// استيراد المكتبات
-const express = require('express');
-// إنشاء تطبيق Express جديد
-const app = express();
-// الحصول على المنفذ من .env أو استخدام 3000 كبديل
-const port = process.env.PORT || 3000;
+// الحصول على المنفذ من .env أو استخدام 5000 كبديل
+const port = process.env.PORT || 5000;
+if (!process.env.PORT) {
+    console.error('PORT environment variable is missing!');
+    process.exit(1);
+}
+
+// تمكين CORS قبل باقي الميدلوير
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
+// app.use(cors({ origin: "*" })); // السماح لجميع المصادر
+// app.use(cors())
+
+// تمكين الـ JSON في الطلبات الواردة
+app.use(express.json()); // تأكد من تمكين express.json() أولاً
+
+// تمكين السجلات
+app.use(morgan("dev"));
+
+// مسار الـ API
+app.use('/test', (req, res) => {
+    res.send('API is working properly');
+});
+
+// تمكين الوصول إلى الملفات المرفوعة
+app.use('/uploads', express.static('uploads'));
+
 // استيراد المسارات
 const userRouter = require('./routers/user/userRouter');
 const propRouter = require('./routers/prop/propRouter');
-// تمكين الـ JSON في الطلبات الواردة
-app.use(express.json()); // تأكد من تمكين express.json() أولاً
-// app.use(cors({ origin: ["http://localhost:3000", "http://localhost:5173"], credentials: true }));
-app.use(morgan("dev"));
-// app.use(cors({ origin: ["http://localhost:3000", "http://180.16.19.252:3000"], credentials: true }));
-app.use(cors({ origin: [process.env.CORS_ORIGIN, process.env.CORS_ORIGIN2], credentials: true }));
-// app.use(cors({ origin: "*" })); // السماح لجميع المصادر
-
-// مسار المنزل
-app.get('/', (req, res) => {
-    res.json({ message: "hello from back-end" });
-});
 
 // ربط المسارات بالموجهات
 app.use('/users', userRouter); // ربط المسارات الخاصة بالمستخدمين
 app.use('/props', propRouter); // ربط المسارات الخاصة بالعقارات
+
+// تمكين الوصول إلى الملفات المرفوعة
+app.use('/uploads', express.static('uploads'));
 
 // مسار لجميع الصفحات غير موجودة
 app.use('*', (req, res) => {
