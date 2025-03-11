@@ -8,7 +8,7 @@ const app = express();
 // استيراد الاتصال بقاعدة البيانات
 require('./database'); // هذه هي الطريقة التي تقوم بها بربط ملف database.js
 // استدعاء cronJobs.js
-require('./utils/prop/cronJobs');
+require('./src/utils/prop/cronJobs');
 
 // تحميل المتغيرات البيئية
 const dotenv = require('dotenv');
@@ -52,15 +52,12 @@ app.use('/test', (req, res) => {
 app.use('/uploads', express.static('uploads'));
 
 // استيراد المسارات
-const userRouter = require('./routers/user/userRouter');
-const propRouter = require('./routers/prop/propRouter');
+const userRouter = require('./src/routers/user/userRouter');
+const propRouter = require('./src/routers/prop/propRouter');
 
 // ربط المسارات بالموجهات
 app.use(userRouter); // ربط المسارات الخاصة بالمستخدمين
 app.use(propRouter); // ربط المسارات الخاصة بالعقارات
-
-// تمكين الوصول إلى الملفات المرفوعة
-app.use('/uploads', express.static('uploads'));
 
 // مسار لجميع الصفحات غير موجودة
 app.use('*', (req, res) => {
