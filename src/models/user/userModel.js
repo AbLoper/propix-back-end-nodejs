@@ -87,7 +87,6 @@ userSchema.pre('save', async function (next) {
     }
 });
 
-
 // دالة للتحقق من صحة كلمة المرور
 userSchema.methods.isValidPassword = async function (password) {
     return await bcrypt.compare(password, this.password);
@@ -121,7 +120,6 @@ userSchema.methods.isAccountLocked = function () {
     }
     return false;
 };
-
 
 // دالة لفك قفل الحساب
 userSchema.methods.unlockAccount = async function () {
