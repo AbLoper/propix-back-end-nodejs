@@ -59,9 +59,6 @@ const propRouter = require('./src/routers/prop/propRouter');
 app.use(userRouter); // ربط المسارات الخاصة بالمستخدمين
 app.use(propRouter); // ربط المسارات الخاصة بالعقارات
 
-// تمكين الوصول إلى الملفات المرفوعة
-app.use('/uploads', express.static('uploads'));
-
 // مسار لجميع الصفحات غير موجودة
 app.use('*', (req, res) => {
     res.status(404).send('Page Not Found');
