@@ -1,16 +1,4 @@
-const express = require('express');
-const morgan = require('morgan');
-const cors = require('cors');
-
-// إنشاء تطبيق Express جديد
-const app = express();
-
-// استيراد الاتصال بقاعدة البيانات
-require('./database'); // هذه هي الطريقة التي تقوم بها بربط ملف database.js
-// استدعاء cronJobs.js
-require('./src/utils/prop/cronJobs');
-
-// تحميل المتغيرات البيئية
+// تحميل المتغيرات البيئية أولاً
 const dotenv = require('dotenv');
 const result = dotenv.config();
 if (result.error) {
@@ -21,35 +9,48 @@ if (result.error) {
 }
 
 // الحصول على المنفذ من .env أو استخدام 5000 كبديل
-const port = process.env.PORT || 5000;
-if (!process.env.PORT) {
+const port = process.env.PORT;
+if (!port) {
     console.error('PORT environment variable is missing!');
     process.exit(1);
 }
 
+// استيراد الاتصال بقاعدة البيانات
+require('./database'); // ربط ملف database.js
+// استدعاء cronJobs.js
+require('./src/utils/prop/cronJobs');
+
+// إنشاء تطبيق Express جديد
+const express = require('express');
+const app = express();
+
 // تمكين CORS قبل باقي الميدلوير
+const cors = require('cors');
 app.use(cors({
     origin: 'http://localhost:3000',
     credentials: true,
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));
-// app.use(cors({ origin: "*" })); // السماح لجميع المصادر
-// app.use(cors())
 
 // تمكين الـ JSON في الطلبات الواردة
 app.use(express.json()); // تأكد من تمكين express.json() أولاً
 
+// تمكين الوصول إلى الملفات المرفوعة
+app.use('/uploads', express.static('uploads'));
+
+// تمكين cookie-parser لتحليل ملفات تعريف الارتباط
+const cookieParser = require('cookie-parser')
+app.use(cookieParser())
+
 // تمكين السجلات
+const morgan = require('morgan');
 app.use(morgan("dev"));
 
 // مسار الـ API
 app.use('/test', (req, res) => {
     res.send('API is working properly');
 });
-
-// تمكين الوصول إلى الملفات المرفوعة
-app.use('/uploads', express.static('uploads'));
 
 // استيراد المسارات
 const userRouter = require('./src/routers/user/userRouter');
@@ -71,8 +72,6 @@ app.use((err, req, res, next) => {
 });
 
 // تشغيل الخادم على البورت المحدد
-app.listen(port,
-    '0.0.0.0', // تعني أن الخادم سيستمع لجميع الواجهات الشبكية، وليس فقط localhost أو 127.0.0.1.
-    () => {
-        console.log(`Server is running on port ${port}`);
-    });
+app.listen(port, '0.0.0.0', () => {
+    console.log(`Server is running on port ${port}`);
+});
