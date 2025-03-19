@@ -33,11 +33,11 @@ const loginUser = async (req, res) => {
         return res.status(400).json(jsend.error({ errors: errors.array() }));
     }
 
-    const { email, password } = req.body; console.log('email:', email, 'password:', password)
+    const { email, password } = req.body;
+    console.log('email:', email, 'password:', password);
 
     try {
         const user = await User.findOne({ email });
-        const username = user.mobile
         if (!user) {
             return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
         }
@@ -59,27 +59,35 @@ const loginUser = async (req, res) => {
         // توليد توكن JWT عند نجاح عملية تسجيل الدخول
         const token = jwt.sign(
             {
-                id: user._id,
+                userId: user._id,
                 email: user.email,
-                mobile: user.mobile,
-                role: user.role
             },
             process.env.JWT_SECRET_KEY,
             { expiresIn: '1h' }
         );
 
-        // حفظ التوكن في قاعدة البيانات
         user.tokens.push(token);
+
+        // حفظ التوكن في قاعدة البيانات
         await user.save();
 
-        return res.status(200).json(jsend.success({
+        // تعيين الـ cookie
+        res.cookie('token', token, {
+            maxAge: 3600000, // 1 ساعة
+            httpOnly: true,  // تأكد من أن الكوكي غير قابل للوصول عبر JavaScript
+            secure: false,   // يجب تمكينها في بيئة الإنتاج إذا كنت تستخدم HTTPS
+        });
+
+        res.status(200).json(jsend.success({
             message: 'Login successful',
-            token: token,
-            userId: user._id,
-            mobile: user.mobile,
-            email: user.email,
-            role: user.role,
-            balance: user.balance
+            data: {
+                userId: user._id,
+                mobile: user.mobile,
+                email: user.email,
+                role: user.role,
+                balance: user.balance,
+                token: token
+            }
         }));
 
     } catch (err) {
@@ -145,8 +153,13 @@ const logoutUser = async (req, res) => {
         // تحقق من التوكن المستلم
         console.log('Received token:', req.token);
 
+        // تأكد من أن التوكن موجود في req.token
+        if (!req.token) {
+            return res.status(401).json(jsend.error({ message: 'Authorization token is missing' }));
+        }
+
         // العثور على المستخدم باستخدام الـ ID
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.id); // req.user يجب أن يحتوي على بيانات المستخدم من الـ decoded token
 
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'User not found' }));
@@ -169,6 +182,7 @@ const logoutUser = async (req, res) => {
         return res.status(500).json(jsend.error({ message: 'Error logging out', error: err.message }));
     }
 };
+
 
 // تسجيل الخروج من جميع الأجهزة
 const logoutAllUser = async (req, res) => {
