@@ -10,6 +10,7 @@ if (result.error) {
 
 // الحصول على المنفذ من .env أو استخدام 5000 كبديل
 const port = process.env.PORT;
+
 if (!port) {
     console.error('PORT environment variable is missing!');
     process.exit(1);
@@ -28,10 +29,24 @@ const app = express();
 const cors = require('cors');
 app.use(cors({
     origin: 'http://localhost:3000',
-    // origin: '*',
     credentials: true,
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
+}));
+
+// إعداد الـ session
+const session = require('express-session');
+app.use(session({
+    secret: process.env.SESSION_SECRET_KEY || 'your_default_secret', // تخزين secret في متغير بيئة أو تعيين قيمة افتراضية
+    resave: false,  // لا يتم حفظ الجلسة إذا لم تتغير
+    saveUninitialized: false,  // لا تحفظ الجلسة إذا كانت غير مبدوءة من قبل المستخدم
+    cookie: {
+        secure: false, // التأكد من أن secure = true في بيئة الإنتاج فقط
+        httpOnly: true,  // منع الوصول إلى الكوكيز عبر JavaScript، مما يزيد الأمان
+        sameSite: 'Strict', // حماية ضد CSRF بتحديد SameSite كـ Strict
+        maxAge: 1000 * 60 * 60 * 24 // تعيين مدة انتهاء الجلسة على 24 ساعة (بالمللي ثانية)
+    },
+    rolling: true // إعادة تعيين مدة انتهاء الجلسة مع كل طلب جديد (اختياري)
 }));
 
 // تمكين الـ JSON في الطلبات الواردة

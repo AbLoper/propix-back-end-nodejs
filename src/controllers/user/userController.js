@@ -98,7 +98,7 @@ const loginUser = async (req, res) => {
 // الحصول على الملف الشخصي للمستخدم
 const getUserProfile = async (req, res) => {
     try {
-        const userId = req.user?.id;
+        const userId = req.user?.userId;
         if (!userId) {
             return res.status(400).json(jsend.error({ message: 'User ID not found in request' }));
         }
@@ -124,9 +124,10 @@ const updateUserProfile = async (req, res) => {
     }
 
     const { email, mobile, password, currentPassword } = req.body;
+    clg('email:', email, 'mobile:', mobile, 'password:', password, 'currentPassword:', currentPassword);
 
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.userId);
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
