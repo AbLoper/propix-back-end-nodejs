@@ -124,7 +124,6 @@ const updateUserProfile = async (req, res) => {
     }
 
     const { email, mobile, password, currentPassword } = req.body;
-    clg('email:', email, 'mobile:', mobile, 'password:', password, 'currentPassword:', currentPassword);
 
     try {
         const user = await User.findById(req.user.userId);
@@ -160,7 +159,7 @@ const logoutUser = async (req, res) => {
         }
 
         // العثور على المستخدم باستخدام الـ ID
-        const user = await User.findById(req.user.id); // req.user يجب أن يحتوي على بيانات المستخدم من الـ decoded token
+        const user = await User.findById(req.user.userId); // req.user يجب أن يحتوي على بيانات المستخدم من الـ decoded token
 
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'User not found' }));
@@ -188,7 +187,7 @@ const logoutUser = async (req, res) => {
 // تسجيل الخروج من جميع الأجهزة
 const logoutAllUser = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.userId);
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
@@ -205,7 +204,7 @@ const logoutAllUser = async (req, res) => {
 // حذف الحساب
 const deleteAccount = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id);
+        const user = await User.findById(req.user.userId);
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
