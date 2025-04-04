@@ -19,7 +19,7 @@ if (!port) {
 // استيراد الاتصال بقاعدة البيانات
 require('./database'); // ربط ملف database.js
 // استدعاء cronJobs.js
-require('./src/utils/prop/cronJobs');
+require('./utils/prop/cronJobs');
 
 // إنشاء تطبيق Express جديد
 const express = require('express');
@@ -69,8 +69,8 @@ app.use('/test', (req, res) => {
 });
 
 // استيراد المسارات
-const userRouter = require('./src/routers/user/userRouter');
-const propRouter = require('./src/routers/prop/propRouter');
+const userRouter = require('./routers/user/userRouter');
+const propRouter = require('./routers/prop/propRouter');
 
 // ربط المسارات بالموجهات
 app.use(userRouter); // ربط المسارات الخاصة بالمستخدمين
