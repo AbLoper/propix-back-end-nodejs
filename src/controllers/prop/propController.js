@@ -2,24 +2,63 @@ const Prop = require('../../models/prop/propModel');
 const User = require('../../models/user/userModel');
 const jsend = require('jsend');
 
-// 1. دالة إضافة إعلان جديد
+// const { default: mongoose } = require("mongoose");
+
+// دالة إضافة إعلان جديد
 const createProp = async (req, res) => {
     const {
-        propType, address, price, specification, features, financial, expirydate, status, isFeatured
+        propType,
+        address,
+        price,
+        specification,
+        features,
+        financial,
+        expirydate,
+        isFeatured
     } = req.body;
 
+    // التحقق من وجود الحقول المطلوبة في الطلب
+    if (!propType || !address || !price || !specification || !features || !financial) {
+        return res.status(400).json(jsend.error({ message: 'البيانات غير مكتملة' }));
+    }
+
+    // التحقق من وجود propNumber
+    // if (!req.body.propNumber) {
+    //     return res.status(400).json(jsend.error({ message: 'يجب تحديد رقم العقار (propNumber)' }));
+    // }
+
+    // التحقق من الحقول الخاصة بالـ financial.rent و financial.investment
+    if (financial.rent) {
+        const { period, duration } = financial.rent;
+        if (!period || !duration) {
+            return res.status(400).json(jsend.error({ message: 'يجب تحديد الفترة والمدة للإيجار' }));
+        }
+    }
+
+    if (financial.investment) {
+        const { period, duration } = financial.investment;
+        if (!period || !duration) {
+            return res.status(400).json(jsend.error({ message: 'يجب تحديد الفترة والمدة للاستثمار' }));
+        }
+    }
+
     try {
-        const user = await User.findById(req.user.id);
+        // التأكد من وجود المستخدم في قاعدة البيانات
+        const user = await User.findById(req.user.userId);
+        
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'المستخدم غير موجود' }));
         }
 
+        // التأكد من أن رصيد المستخدم كافٍ
         if (user.balance < price.amount) {
             return res.status(400).json(jsend.error({ message: 'رصيد المستخدم غير كافٍ' }));
         }
 
+        // إنشاء الإعلان الجديد
         const newProp = new Prop({
-            createdBy: user.id,
+            createdBy: user.userId,
+            propNumber: req.body.propNumber,  // إضافة رقم العقار
             propType,
             address,
             price,
@@ -31,15 +70,21 @@ const createProp = async (req, res) => {
             isFeatured: isFeatured || false, // إضافة الحقل isFeatured
         });
 
+        // حفظ الإعلان في قاعدة البيانات
         await newProp.save();
 
-        // خصم الرصيد
+        // خصم الرصيد من المستخدم
         user.balance -= price.amount;
         await user.save();
 
+        // إرسال الاستجابة بنجاح
         return res.status(201).json(jsend.success({ message: 'تم إضافة الإعلان بنجاح', data: newProp }));
     } catch (error) {
-        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء إضافة الإعلان' }));
+        // طباعة الخطأ في الكونسول لمعرفة التفاصيل
+        console.error(error);
+
+        // إرسال رسالة خطأ للخادم
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء إضافة الإعلان', error: error.message }));
     }
 };
 

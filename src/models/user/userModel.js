@@ -1,9 +1,5 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const redis = require('../../utils/appProtections/user/redisClient'); // استيراد Redis client
-
-const LOGIN_ATTEMPTS_PREFIX = 'login_attempts:';
-
 
 const userSchema = new mongoose.Schema({
     mobile: {
@@ -14,7 +10,7 @@ const userSchema = new mongoose.Schema({
             validator: function (v) {
                 return /^[0-9]{8}$/.test(v);
             },
-            message: props => `${props.value} ليس رقم هاتف صالحًا!`
+            message: props => `${props.value} رقم الموبايل غير صحيح`
         }
     },
     email: {
@@ -45,13 +41,20 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'admin', 'owner'],
         default: 'user',
     },
-    balance: {
+    funds: {
         type: Number,
-        default: 10
+        default: 0
+    },
+    coupon: {
+        type: Number,
+        default: 1
     },
     tokens: [{
         type: String
     }],
+    followedprops: [
+        { type: mongoose.Schema.Types.ObjectId, ref: 'Prop' }
+    ],
     failedLoginAttempts: {
         type: Number,
         default: 0
