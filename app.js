@@ -1,4 +1,4 @@
-// تحميل المتغيرات البيئية أولاً
+/* // تحميل المتغيرات البيئية أولاً
 const dotenv = require('dotenv');
 const result = dotenv.config();
 if (result.error) {
@@ -6,7 +6,7 @@ if (result.error) {
     process.exit(1);  // إنهاء التطبيق إذا فشل تحميل ملف .env
 } else {
     console.log('Loaded .env file successfully');
-}
+} */
 
 // الحصول على المنفذ من .env أو استخدام 5000 كبديل
 const port = process.env.PORT;
