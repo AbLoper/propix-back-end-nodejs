@@ -73,6 +73,7 @@ const propSchema = new mongoose.Schema(
 
             paymentMethod: {
                 type: String,
+                enum: ['funds', 'coupon'],
             },
         },
 

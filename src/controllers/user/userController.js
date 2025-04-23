@@ -5,14 +5,11 @@ const jsend = require('jsend');  // استخدام مكتبة jsend لتوحيد
 
 // التسجيل
 const registerUser = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json(jsend.error({ errors: errors.array() }));
-    }
-
-    const { email, mobile, password } = req.body;
 
     try {
+
+        const { email, mobile, password } = req.body;
+
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json(jsend.error({ message: 'Email already exists' }));
@@ -28,15 +25,11 @@ const registerUser = async (req, res) => {
 
 // تسجيل الدخول
 const loginUser = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json(jsend.error({ errors: errors.array() }));
-    }
-
-    const { email, password } = req.body;
-    console.log('email:', email, 'password:', password);
 
     try {
+
+        const { email, password } = req.body;
+
         const user = await User.findOne({ email });
         if (!user) {
             return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
@@ -48,6 +41,7 @@ const loginUser = async (req, res) => {
         }
 
         const isPasswordValid = await user.isValidPassword(password);
+
         if (!isPasswordValid) {
             await user.incrementFailedLoginAttempts(); // زيادة المحاولات الفاشلة
             return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
@@ -98,7 +92,9 @@ const loginUser = async (req, res) => {
 
 // الحصول على الملف الشخصي للمستخدم
 const getUserProfile = async (req, res) => {
+
     try {
+
         const userId = req.user?.userId;
         if (!userId) {
             return res.status(400).json(jsend.error({ message: 'User ID not found in request' }));
@@ -119,15 +115,13 @@ const getUserProfile = async (req, res) => {
 
 // تحديث الملف الشخصي
 const updateUserProfile = async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-        return res.status(400).json(jsend.error({ errors: errors.array() }));
-    }
-
-    const { email, mobile, password, currentPassword } = req.body;
 
     try {
+
+        const { email, mobile, password, currentPassword } = req.body;
+
         const user = await User.findById(req.user.userId);
+
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
@@ -183,7 +177,6 @@ const logoutUser = async (req, res) => {
         return res.status(500).json(jsend.error({ message: 'Error logging out', error: err.message }));
     }
 };
-
 
 // تسجيل الخروج من جميع الأجهزة
 const logoutAllUser = async (req, res) => {
