@@ -1,15 +1,15 @@
-/* // تحميل المتغيرات البيئية أولاً
-const dotenv = require('dotenv');
-const result = dotenv.config();
-if (result.error) {
-    console.error('Error loading .env file:', result.error);
-    process.exit(1);  // إنهاء التطبيق إذا فشل تحميل ملف .env
-} else {
-    console.log('Loaded .env file successfully');
-} */
+// تحميل المتغيرات البيئية أولاً
+// const dotenv = require('dotenv');
+// const result = dotenv.config();
+// if (result.error) {
+//     console.error('Error loading .env file:', result.error);
+//     process.exit(1);  // إنهاء التطبيق إذا فشل تحميل ملف .env
+// } else {
+//     console.log('Loaded .env file successfully');
+// }
 
 // الحصول على المنفذ من .env أو استخدام 5000 كبديل
-const port = process.env.PORT;
+const port = process.env.PORT || 5000; // تعيين المنفذ الافتراضي إلى 5000 إذا لم يتم تحديده في .env
 
 if (!port) {
     console.error('PORT environment variable is missing!');
@@ -17,7 +17,7 @@ if (!port) {
 }
 
 // استيراد الاتصال بقاعدة البيانات
-require('./database'); // ربط ملف database.js
+require('./config/database'); // ربط ملف database.js
 // استدعاء cronJobs.js
 require('./utils/prop/cronJobs');
 
@@ -25,17 +25,11 @@ require('./utils/prop/cronJobs');
 const express = require('express');
 const app = express();
 
-// تمكين CORS قبل باقي الميدلوير
-const cors = require('cors');
-app.use(cors({
-    origin: 'http://localhost:3000',
-    credentials: true,
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type']
-}));
+// استيراد ال middlewares
+require('./middleware/index')(app);
 
-// إعداد الـ session
-const session = require('express-session');
+// تمكين الـ session middleware
+/* const session = require('express-session');
 app.use(session({
     secret: process.env.SESSION_SECRET_KEY || 'your_default_secret', // تخزين secret في متغير بيئة أو تعيين قيمة افتراضية
     resave: false,  // لا يتم حفظ الجلسة إذا لم تتغير
@@ -47,21 +41,7 @@ app.use(session({
         maxAge: 1000 * 60 * 60 * 24 // تعيين مدة انتهاء الجلسة على 24 ساعة (بالمللي ثانية)
     },
     rolling: true // إعادة تعيين مدة انتهاء الجلسة مع كل طلب جديد (اختياري)
-}));
-
-// تمكين الـ JSON في الطلبات الواردة
-app.use(express.json()); // تأكد من تمكين express.json() أولاً
-
-// تمكين الوصول إلى الملفات المرفوعة
-app.use('/uploads', express.static('uploads'));
-
-// تمكين cookie-parser لتحليل ملفات تعريف الارتباط
-const cookieParser = require('cookie-parser')
-app.use(cookieParser())
-
-// تمكين السجلات
-const morgan = require('morgan');
-app.use(morgan("dev"));
+})); */
 
 // مسار الـ API
 app.use('/test', (req, res) => {
@@ -73,8 +53,9 @@ const userRouter = require('./routers/user/userRouter');
 const propRouter = require('./routers/prop/propRouter');
 
 // ربط المسارات بالموجهات
-app.use(userRouter); // ربط المسارات الخاصة بالمستخدمين
-app.use(propRouter); // ربط المسارات الخاصة بالعقارات
+// app.use(userRouter); // ربط المسارات الخاصة بالمستخدمين
+app.use('/api/users', userRouter); // ربط المسارات الخاصة بالمستخدمين
+app.use('/api/properties', propRouter); // ربط المسارات الخاصة بالعقارات
 
 // مسار لجميع الصفحات غير موجودة
 app.use('*', (req, res) => {

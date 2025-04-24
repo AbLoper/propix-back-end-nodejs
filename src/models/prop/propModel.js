@@ -19,7 +19,7 @@ const propSchema = new mongoose.Schema(
 
         // 2. معلومات عن السعر
         price: {
-            amount: { type: Number, required: true, min: 0 }, // إضافة تحقق من أن السعر لا يمكن أن يكون سالبًا.
+            amount: { type: Number, required: true, min: 10 }, // إضافة تحقق من أن السعر لا يمكن أن يكون سالبًا.
             currency: { type: String, required: true, default: 'USD' },
         },
 
@@ -122,7 +122,7 @@ const propSchema = new mongoose.Schema(
         }
         ,
         // 9. المرفقات والملفات
-        images: {
+/*         images: {
             type: [String],
             validate: {
                 validator: (value) => {
@@ -132,7 +132,7 @@ const propSchema = new mongoose.Schema(
                 message: 'يجب أن تحتوي المصفوفة على صورة واحدة على الأقل بصيغة JPEG أو jpg أو PNG وألا تتجاوز 5 صور.',
             },
             required: true,
-        },
+        }, */
         notifications: [{
             type: { type: String, enum: ['info', 'warning', 'error', 'success'] },
             message: { type: String, maxlength: 100, required: false },
@@ -153,8 +153,7 @@ const propSchema = new mongoose.Schema(
         approved: {
             type: Boolean,
             default: false, // يعكس الحالة المبدئية للإعلان
-        },
-
+        }
     },
     { timestamps: true }
 );

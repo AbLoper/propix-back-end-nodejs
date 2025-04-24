@@ -4,6 +4,10 @@ const jsend = require('jsend');
 
 // const { default: mongoose } = require("mongoose");
 
+const createProp1 = (req, res) => {
+    return res.status(200).json(jsend.success({ message: 'تمت العملية بنجاح' }));
+}
+
 // دالة إضافة إعلان جديد
 const createProp = async (req, res) => {
     const {
@@ -13,80 +17,65 @@ const createProp = async (req, res) => {
         specification,
         features,
         financial,
-        expirydate,
+        images,
+        notifications,
+        notes,
+        propNumber,
         isFeatured
     } = req.body;
 
-    // التحقق من وجود الحقول المطلوبة في الطلب
-    if (!propType || !address || !price || !specification || !features || !financial) {
-        return res.status(400).json(jsend.error({ message: 'البيانات غير مكتملة' }));
-    }
-
-    // التحقق من وجود propNumber
-    // if (!req.body.propNumber) {
-    //     return res.status(400).json(jsend.error({ message: 'يجب تحديد رقم العقار (propNumber)' }));
-    // }
-
-    // التحقق من الحقول الخاصة بالـ financial.rent و financial.investment
-    if (financial.rent) {
-        const { period, duration } = financial.rent;
-        if (!period || !duration) {
-            return res.status(400).json(jsend.error({ message: 'يجب تحديد الفترة والمدة للإيجار' }));
-        }
-    }
-
-    if (financial.investment) {
-        const { period, duration } = financial.investment;
-        if (!period || !duration) {
-            return res.status(400).json(jsend.error({ message: 'يجب تحديد الفترة والمدة للاستثمار' }));
-        }
+    // التحقق من الحقول المطلوبة
+    // if (!propType || !address || !price || !specification || !features || !financial || !images || !propNumber) {
+    if (!propType || !address || !price || !specification || !features || !financial || !propNumber) {
+        return res.status(400).json(jsend.error({ message: 'البيانات غير مكتملة أو بعض الحقول مفقودة' }));
     }
 
     try {
-        // التأكد من وجود المستخدم في قاعدة البيانات
         const user = await User.findById(req.user.userId);
-        
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'المستخدم غير موجود' }));
         }
 
-        // التأكد من أن رصيد المستخدم كافٍ
+        // التحقق من وجود رصيد كافٍ (مقارنة بالسعر المحدد في price.amount أو financial.price)
         if (user.balance < price.amount) {
-            return res.status(400).json(jsend.error({ message: 'رصيد المستخدم غير كافٍ' }));
+            return res.status(400).json(jsend.error({ message: 'رصيد المستخدم غير كافٍ لإضافة الإعلان' }));
         }
 
-        // إنشاء الإعلان الجديد
         const newProp = new Prop({
-            createdBy: user.userId,
-            propNumber: req.body.propNumber,  // إضافة رقم العقار
             propType,
             address,
             price,
             specification,
             features,
             financial,
-            expirydate,
-            status: 'waiting',  // وضعه في حالة انتظار بشكل افتراضي
-            isFeatured: isFeatured || false, // إضافة الحقل isFeatured
+            images,
+            notifications,
+            notes,
+            propNumber,
+            isFeatured: isFeatured || false,
+            createdBy: user._id,
+            disabledBy: user._id,
+            lastPublishedBy: user._id,
+            status: 'waiting'
         });
 
-        // حفظ الإعلان في قاعدة البيانات
+        // حفظ الإعلان
         await newProp.save();
 
         // خصم الرصيد من المستخدم
         user.balance -= price.amount;
         await user.save();
 
-        // إرسال الاستجابة بنجاح
-        return res.status(201).json(jsend.success({ message: 'تم إضافة الإعلان بنجاح', data: newProp }));
+        return res.status(201).json(jsend.success({
+            message: 'تم إضافة الإعلان بنجاح',
+            data: newProp
+        }));
     } catch (error) {
-        // طباعة الخطأ في الكونسول لمعرفة التفاصيل
-        console.error(error);
-
-        // إرسال رسالة خطأ للخادم
-        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء إضافة الإعلان', error: error.message }));
+        console.error('Error in createProp:', error);
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء إنشاء الإعلان', error: error.message }));
     }
 };
+
 
 // 2. دالة تعديل إعلان
 const updateProp = async (req, res) => {

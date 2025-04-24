@@ -160,9 +160,6 @@ const logoutUser = async (req, res) => {
             return res.status(404).json(jsend.error({ message: 'User not found' }));
         }
 
-        // تحقق من التوكنات المخزنة في قاعدة البيانات
-        console.log('User tokens:', user.tokens);
-
         // تحقق من تطابق التوكنات
         if (!user.tokens.includes(req.token)) {
             return res.status(401).json(jsend.error({ message: 'Token mismatch, unable to logout' }));
