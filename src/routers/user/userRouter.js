@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const userAuth = require('../../middleware/user/userAuth');
-const { registerLimiter, loginLimiter, updateProfileLimiter } = require('../../utils/appProtections/user/bruteForceProtection');
+const checkAuthentication = require('../../middleware/user/checkAuthentication');
+const { registerLimiter, loginLimiter, updateProfileLimiter } = require('../../utils/appProtections/user/rateLimit');
 const userController = require('../../controllers/user/userController');
-const checkRole = require('../../middleware/user/checkRole');
+const checkAuthorization = require('../../middleware/user/checkAuthorization');
 const { validationErrors } = require('../../middleware/validationErrors');  // استيراد الميدل وير الجديد
 
 // مسار التسجيل
@@ -21,25 +21,25 @@ router.post('/login', loginLimiter, [
 ], validationErrors, userController.loginUser);
 
 // مسار الحصول على صفحة المستخدم الشخصية
-router.get('/profile', userAuth, userController.getUserProfile);
+router.get('/profile', checkAuthentication, userController.getUserProfile);
 
 // مسار تحديث البيانات الشخصية
-router.patch('/update-profile', userAuth, updateProfileLimiter, [
+router.patch('/update-profile', checkAuthentication, updateProfileLimiter, [
     body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().isLowercase().withMessage('Email should be in lowercase').trim(),
     body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers'),
     body('password').isLength({ min: 8, max: 16 }).withMessage('Password must between 8-16 characters long')
 ], validationErrors, userController.updateUserProfile);
 
 // مسار تسجيل الخروج
-router.post('/logout', userAuth, userController.logoutUser);
+router.post('/logout', checkAuthentication, userController.logoutUser);
 
 // مسار تسجيل الخروج من جميع الأجهزة
-router.post('/logoutAll', userAuth, userController.logoutAllUser);
+router.post('/logoutAll', checkAuthentication, userController.logoutAllUser);
 
 // مسار حذف الحساب
-router.delete('/delete-account', userAuth, userController.deleteAccount);
+router.delete('/delete-account', checkAuthentication, userController.deleteAccount);
 
 // مسار لإلغاء قفل الحساب - فقط للمسؤولين
-router.post('/unlock', userAuth, checkRole(['admin', 'owner']), userController.unlockUserAccount);
+router.post('/unlock', checkAuthentication, checkAuthorization(['admin', 'owner']), userController.unlockUserAccount);
 
 module.exports = router;

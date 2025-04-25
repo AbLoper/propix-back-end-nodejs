@@ -1,21 +1,67 @@
-# Node.js dependencies
+# === Node ===
 node_modules/
-
-# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Environment variables
+# === Build Output ===
+dist/
+build/
+.cache/
+.next/
+out/
+
+# === TypeScript ===
+*.tsbuildinfo
+
+# === Testing ===
+coverage/
+.jest/
+jest-cache/
+jest-config/
+
+# === Environment Variables ===
 .env
+.env.*.local
 
-# IDEs and editors
-.vscode/
-.idea/
-
-# OS files
+# === OS Files ===
 .DS_Store
 Thumbs.db
 
-# build output
-/dist
+# === Editor Directories ===
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# === MongoDB Dumps ===
+dump/
+
+# === Logs & PIDs ===
+logs/
+*.log
+pids/
+*.pid
+*.pid.lock
+
+# === PM2 ===
+.pids/
+pm2.log
+*.pm2.log
+ecosystem.config.js
+
+# === Docker ===
+docker-compose.override.yml
+docker-compose-dev.yml
+Dockerfile.dev
+.docker/
+*.tar
+*.img
+
+# === Misc ===
+*.tgz
+*.bak
+*.swp
+*.tmp
+*.orig
+*.rej
