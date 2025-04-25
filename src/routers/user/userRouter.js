@@ -9,15 +9,15 @@ const { validationErrors } = require('../../middleware/validationErrors');  // �
 
 // مسار التسجيل
 router.post('/register', registerLimiter, [
-    body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().isLowercase().withMessage('Email should be in lowercase').trim(),
-    body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers'),
-    body('password').matches(/^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[\]:;<>,.?/~_+\-=|\\]).{8,32}$/).withMessage('Password must meet complexity criteria')
+    body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().isLowercase().withMessage('Email should be in lowercase').trim().notEmpty(),
+    body('mobile').isLength(8).withMessage('Mobile number must be 8 digits').isNumeric().withMessage('Mobile number must contain only numbers').notEmpty(),
+    body('password').matches(/^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[*.!@$%^&(){}[\]:;<>,.?/~_+\-=|\\]).{8,32}$/).withMessage('Password must meet complexity criteria').notEmpty()
 ], validationErrors, userController.registerUser);
 
 // مسار تسجيل الدخول
 router.post('/login', loginLimiter, [
-    body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail(),
-    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long')
+    body('email').isEmail().withMessage('Please provide a valid email address').normalizeEmail().notEmpty(),
+    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters long').notEmpty()
 ], validationErrors, userController.loginUser);
 
 // مسار الحصول على صفحة المستخدم الشخصية

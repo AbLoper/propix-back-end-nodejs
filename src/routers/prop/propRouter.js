@@ -1,4 +1,5 @@
 const express = require('express');
+const { body, validationResult } = require('express-validator');
 const router = express.Router();
 const propController = require('../../controllers/prop/propController');
 const checkRole = require('../../middleware/user/checkRole');
@@ -10,6 +11,20 @@ router.post(
     '/create',
     userAuth,  // تأكد من أن المستخدم مسجل دخول
     checkRole(['user', 'admin', 'owner']),  // التأكد من الصلاحيات
+    // التحقق من صحة البيانات باستخدام express-validator
+    [
+        body('propType').isString().withMessage('نوع العقار مطلوب').notEmpty(),
+        body('address.city').isString().withMessage('المدينة مطلوبة').notEmpty(),
+        body('address.area').isString().withMessage('المنطقة مطلوبة').notEmpty(),
+        body('address.street').isString().withMessage('الشارع مطلوب').notEmpty(),
+        body('address.building').isInt({ min: 1 }).withMessage('رقم المبنى مطلوب ويجب أن يكون أكبر من 0'),
+        body('address.floor').isInt({ min: 1 }).withMessage('الطابق مطلوب ويجب أن يكون أكبر من 0'),
+        body('price.amount').isFloat({ gt: 0 }).withMessage('السعر يجب أن يكون قيمة عددية أكبر من 0'),
+        body('price.currency').isString().withMessage('العملة مطلوبة').notEmpty(),
+        body('specification.rooms').isInt({ min: 1 }).withMessage('عدد الغرف مطلوب ويجب أن يكون أكبر من 0'),
+        body('specification.floor').isInt({ min: 1 }).withMessage('الطابق مطلوب ويجب أن يكون أكبر من 0'),
+        body('specification.bathroom').isInt({ min: 1 }).withMessage('عدد الحمامات مطلوب ويجب أن يكون أكبر من 0'),
+    ],
     validationErrors, // ميدلوير التحقق من الأخطاء
     propController.createProp  // استدعاء دالة إضافة الإعلان
 );
@@ -19,6 +34,19 @@ router.put(
     '/:id',
     userAuth,  // تأكد من أن المستخدم مسجل دخول
     checkRole(['user', 'admin', 'owner']),  // التأكد من الصلاحيات
+    [
+        body('propType').optional().isString().withMessage('نوع العقار يجب أن يكون نصًا'),
+        body('address.city').optional().isString().withMessage('المدينة يجب أن تكون نصًا'),
+        body('address.area').optional().isString().withMessage('المنطقة يجب أن تكون نصًا'),
+        body('address.street').optional().isString().withMessage('الشارع يجب أن يكون نصًا'),
+        body('address.building').optional().isInt({ min: 1 }).withMessage('رقم المبنى يجب أن يكون أكبر من 0'),
+        body('address.floor').optional().isInt({ min: 1 }).withMessage('الطابق يجب أن يكون أكبر من 0'),
+        body('price.amount').optional().isFloat({ gt: 0 }).withMessage('السعر يجب أن يكون أكبر من 0'),
+        body('price.currency').optional().isString().withMessage('العملة يجب أن تكون نصًا'),
+        body('specification.rooms').optional().isInt({ min: 1 }).withMessage('عدد الغرف يجب أن يكون أكبر من 0'),
+        body('specification.floor').optional().isInt({ min: 1 }).withMessage('الطابق يجب أن يكون أكبر من 0'),
+        body('specification.bathroom').optional().isInt({ min: 1 }).withMessage('عدد الحمامات يجب أن يكون أكبر من 0'),
+    ],
     validationErrors, // ميدلوير التحقق من الأخطاء
     propController.updateProp  // استدعاء دالة تعديل الإعلان
 );

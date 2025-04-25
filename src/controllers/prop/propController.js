@@ -2,11 +2,7 @@ const Prop = require('../../models/prop/propModel');
 const User = require('../../models/user/userModel');
 const jsend = require('jsend');
 
-// const { default: mongoose } = require("mongoose");
-
-const createProp1 = (req, res) => {
-    return res.status(200).json(jsend.success({ message: 'تمت العملية بنجاح' }));
-}
+const { default: mongoose } = require("mongoose");
 
 // دالة إضافة إعلان جديد
 const createProp = async (req, res) => {
@@ -25,13 +21,13 @@ const createProp = async (req, res) => {
     } = req.body;
 
     // التحقق من الحقول المطلوبة
-    // if (!propType || !address || !price || !specification || !features || !financial || !images || !propNumber) {
-    if (!propType || !address || !price || !specification || !features || !financial || !propNumber) {
+    if (!propType || !address || !price || !specification || !features || !financial || !images || !propNumber) {
         return res.status(400).json(jsend.error({ message: 'البيانات غير مكتملة أو بعض الحقول مفقودة' }));
     }
 
     try {
         const user = await User.findById(req.user.userId);
+
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'المستخدم غير موجود' }));
         }
@@ -75,7 +71,6 @@ const createProp = async (req, res) => {
         return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء إنشاء الإعلان', error: error.message }));
     }
 };
-
 
 // 2. دالة تعديل إعلان
 const updateProp = async (req, res) => {
