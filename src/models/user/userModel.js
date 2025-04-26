@@ -52,7 +52,7 @@ const userSchema = new mongoose.Schema({
     tokens: [{
         type: String
     }],
-    followedprops: [
+    followedProps: [
         { type: mongoose.Schema.Types.ObjectId, ref: 'Prop' }
     ],
     failedLoginAttempts: {

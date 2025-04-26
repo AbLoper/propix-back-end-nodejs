@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 dotenv.config();
 
-const connectToDatabase = async () => {
+const databaseConx = async () => {
     try {
         const DB_HOST = process.env.DB_HOST;
 
@@ -20,4 +20,4 @@ const connectToDatabase = async () => {
     }
 };
 
-connectToDatabase();
+databaseConx();
