@@ -15,8 +15,14 @@ require('./config/databaseConx');
 // استدعاء cronJobs.js
 require('./utils/prop/cronJobs');
 
+// استدعاء multer.js
+require('./config/multerConfig');
+
 // إعداد تطبيق Express
 const app = express();
+
+// استخدام مكتبة jsend لتوحيد الاستجابات
+const jsend = require('jsend');
 
 // استيراد ال middlewares
 require('./middleware/index')(app);
@@ -29,9 +35,26 @@ const sessionConfig = require('./config/sessionConfig');
 // تطبيق إعدادات الجلسة على التطبيق
 app.use(session(sessionConfig));
 
-// مسار الـ API
+// استخدام jsend في استجابات الـ API
+app.use((req, res, next) => {
+    res.success = (data) => {
+        return res.status(200).json(jsend.success(data));
+    };
+
+    res.error = (message, code = 400) => {
+        return res.status(code).json(jsend.error(message));
+    };
+
+    res.fail = (message, code = 400) => {
+        return res.status(code).json(jsend.fail(message));
+    };
+
+    next();
+});
+
+// مسار الـ API (مثال استخدام jsend في المسار)
 app.use('/test', (req, res) => {
-    res.send('API is working properly');
+    res.success({ message: 'API is working properly' });
 });
 
 // استيراد المسارات
@@ -44,13 +67,13 @@ app.use('/api/properties', propRouter); // ربط المسارات الخاصة 
 
 // مسار لجميع الصفحات غير موجودة
 app.use('*', (req, res) => {
-    res.status(404).send('Page Not Found');
+    res.error('Page Not Found', 404);
 });
 
 // التعامل مع الأخطاء العامة
 app.use((err, req, res, next) => {
     console.error('Unexpected Error:', err);
-    res.status(500).send('Something went wrong!');
+    res.error('Something went wrong!', 500);
 });
 
 // الحصول على المنفذ من .env أو استخدام 5000 كبديل
