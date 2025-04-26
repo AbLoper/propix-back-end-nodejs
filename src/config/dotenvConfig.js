@@ -1,4 +1,4 @@
-const dotenv = require('dotenv');
+/* const dotenv = require('dotenv');
 
 // تحميل المتغيرات البيئية
 const result = dotenv.config();
@@ -9,4 +9,5 @@ if (result.error) {
     console.log('Loaded .env file successfully');
 }
 
-module.exports = dotenv; // يمكن تصدير dotenv إذا أردت استخدامه في مكان آخر
+module.exports = dotenv;
+ */
