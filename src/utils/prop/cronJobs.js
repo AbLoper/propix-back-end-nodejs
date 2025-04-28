@@ -1,7 +1,6 @@
 const cron = require('node-cron');
 const User = require('../../models/user/userModel');
 const Prop = require('../../models/prop/propModel');
-const jsend = require('jsend');
 
 // تحديد مهمة إعادة نشر الإعلانات
 cron.schedule('0 0 * * *', async () => {
@@ -38,7 +37,7 @@ cron.schedule('0 0 * * *', async () => {
         console.log('تم تحديث الإعلانات المنتهية');
     } catch (err) {
         console.error('حدث خطأ في جدولة إعادة نشر الإعلانات:', err);
-        return jsend.error({ message: 'حدث خطأ في جدولة إعادة نشر الإعلانات', error: err.message });
+        return res.error('حدث خطأ في جدولة إعادة نشر الإعلانات', 500);
     }
 });
 
@@ -67,13 +66,12 @@ cron.schedule('*/5 * * * *', async () => {
         if (bulkOps.length > 0) {
             await User.bulkWrite(bulkOps);
             console.log('تم تسجيل الخروج التلقائي للمستخدمين لمرور أكثر من ساعة على آخر تسجيل دخول.');
-            return jsend.success({ message: 'تم تسجيل الخروج للمستخدمين التلقائي بنجاح' });
         } else {
-            return jsend.success({ message: 'لا توجد مستخدمين يحتاجون لتسجيل الخروج' });
+            console.log('لا توجد مستخدمين يحتاجون لتسجيل الخروج');
         }
     } catch (err) {
         console.error('حدث خطأ في جدولة تسجيل الخروج التلقائي للمستخدمين:', err);
-        return jsend.error({ message: 'حدث خطأ في جدولة تسجيل الخروج التلقائي للمستخدمين', error: err.message });
+        return res.error('حدث خطأ في جدولة تسجيل الخروج التلقائي للمستخدمين', 500);
     }
 });
 
@@ -81,27 +79,31 @@ cron.schedule('*/5 * * * *', async () => {
 cron.schedule('0 * * * *', async () => {  // كل ساعة
     const currentTime = new Date();
 
-    const expiredTokens = await User.find({
-        'tokens.expiresAt': { $lt: currentTime }
-    });
+    try {
+        const expiredTokens = await User.find({
+            'tokens.expiresAt': { $lt: currentTime }
+        });
 
-    const bulkOps = expiredTokens.map(user => {
-        // إبقاء التوكنات الصالحة فقط
-        user.tokens = user.tokens.filter(token => token.expiresAt > currentTime);
+        const bulkOps = expiredTokens.map(user => {
+            // إبقاء التوكنات الصالحة فقط
+            user.tokens = user.tokens.filter(token => token.expiresAt > currentTime);
 
-        return {
-            updateOne: {
-                filter: { _id: user._id },
-                update: { $set: { tokens: user.tokens } }
-            }
-        };
-    });
+            return {
+                updateOne: {
+                    filter: { _id: user._id },
+                    update: { $set: { tokens: user.tokens } }
+                }
+            };
+        });
 
-    if (bulkOps.length > 0) {
-        await User.bulkWrite(bulkOps);
-        console.log('تم تحديث التوكنات المنتهية صلاحيتها');
-        return jsend.success({ message: 'تم حذف التوكنات المنتهية صلاحيتها بنجاح' });
-    } else {
-        return jsend.success({ message: 'لا توجد توكنات منتهية صلاحيتها' });
+        if (bulkOps.length > 0) {
+            await User.bulkWrite(bulkOps);
+            console.log('تم تحديث التوكنات المنتهية صلاحيتها');
+        } else {
+            console.log('لا توجد توكنات منتهية صلاحيتها');
+        }
+    } catch (err) {
+        console.error('حدث خطأ في جدولة حذف التوكنات المنتهية صلاحيتها:', err);
+        return res.error('حدث خطأ في جدولة حذف التوكنات المنتهية صلاحيتها', 500);
     }
 });

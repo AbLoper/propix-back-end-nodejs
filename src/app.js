@@ -1,89 +1,93 @@
-// استيراد الحزم الأساسية أولاً
+// ====================
+// 1. استيراد الحزم الأساسية
+// ====================
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
 
-// استيراد إعدادات CORS
+// ====================
+// 2. تحميل التهيئات (Configs) والوظائف الخلفية
+// ====================
+require('./config/dotenvConfig');          // تحميل متغيرات البيئة
+require('./config/databaseConx');          // الاتصال بقاعدة البيانات
+require('./config/multerConfig');          // إعداد رفع الملفات
+require('./utils/prop/cronJobs');          // الوظائف المجدولة (Cron Jobs)
+
 const corsOptions = require('./config/corsOptions');
+const sessionConfig = require('./config/sessionConfig');
 
-// استيراد إعدادات dotenv من الملف dotenvConfig
-require('./config/dotenvConfig');
-
-// استيراد الاتصال بقاعدة البيانات
-require('./config/databaseConx');
-
-// استدعاء cronJobs.js
-require('./utils/prop/cronJobs');
-
-// استدعاء multer.js
-require('./config/multerConfig');
-
-// إعداد تطبيق Express
+// ====================
+// 3. إنشاء تطبيق Express
+// ====================
 const app = express();
 
-// استخدام مكتبة jsend لتوحيد الاستجابات
-const jsend = require('jsend');
+// ====================
+// 4. ميدل وير النظام الأساسي
+// ====================
+app.use(express.json());                   // لتحليل JSON من الطلبات
+app.use(cors(corsOptions));                // إعداد CORS
+app.use(session(sessionConfig));           // تفعيل جلسات المستخدمين
 
-// استيراد ال middlewares
-require('./middleware/index')(app);
+// ====================
+// 5. ميدل وير مخصص
+// ====================
+const jsendMiddleware = require('./middleware/jsend'); // تنسيق الردود
+app.use(jsendMiddleware);
 
-// تطبيق إعدادات CORS على التطبيق
-app.use(cors(corsOptions));
+require('./middleware/index')(app);        // ميدل وير مخصصة أخرى
 
-// استيراد إعدادات الـ Session
-const sessionConfig = require('./config/sessionConfig');
-// تطبيق إعدادات الجلسة على التطبيق
-app.use(session(sessionConfig));
-
-// استخدام jsend في استجابات الـ API
-app.use((req, res, next) => {
-    res.success = (data) => {
-        return res.status(200).json(jsend.success(data));
-    };
-
-    res.error = (message, code = 400) => {
-        return res.status(code).json(jsend.error(message));
-    };
-
-    res.fail = (message, code = 400) => {
-        return res.status(code).json(jsend.fail(message));
-    };
-
-    next();
-});
-
-// مسار الـ API (مثال استخدام jsend في المسار)
-app.use('/test', (req, res) => {
+// ====================
+// 6. مسار اختبار (Test Route)
+// ====================
+app.get('/test', (req, res) => {
     res.success({ message: 'API is working properly' });
 });
 
-// استيراد المسارات
+// ====================
+// 7. المسارات الرئيسية (Routers)
+// ====================
 const userRouter = require('./routers/user/userRouter');
 const propRouter = require('./routers/prop/propRouter');
 
-// ربط المسارات بالموجهات
-app.use('/api/users', userRouter); // ربط المسارات الخاصة بالمستخدمين
-app.use('/api/properties', propRouter); // ربط المسارات الخاصة بالعقارات
+app.use('/api/users', userRouter);         // مسارات المستخدمين
+app.use('/api/properties', propRouter);    // مسارات العقارات
 
-// مسار لجميع الصفحات غير موجودة
+// ====================
+// 8. التعامل مع المسارات غير المعروفة
+// ====================
 app.use('*', (req, res) => {
     res.error('Page Not Found', 404);
 });
 
-// التعامل مع الأخطاء العامة
+// ====================
+// 9. ميدل وير التعامل مع الأخطاء
+// ====================
 app.use((err, req, res, next) => {
     console.error('Unexpected Error:', err);
-    res.error('Something went wrong!', 500);
+
+    if (res.headersSent) return next(err);
+
+    const isDev = process.env.NODE_ENV !== 'production';
+    const message = isDev ? err.message : 'Something went wrong!';
+    const stack = isDev ? err.stack : undefined;
+
+    res.status(500).json({
+        status: 'error',
+        message,
+        ...(stack && { stack })
+    });
 });
 
-// الحصول على المنفذ من .env أو استخدام 5000 كبديل
+// ====================
+// 10. تشغيل الخادم
+// ====================
 const port = process.env.PORT || 5000;
+
 if (!port) {
     console.error('PORT environment variable is missing!');
     process.exit(1);
 }
 
-// تشغيل الخادم على البورت المحدد
 app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is running on port ${port}`);
+    console.log(`✅ Server is running on port ${port}`);
 });

@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const jsend = require('jsend');
 
 const checkAuthentication = async (req, res, next) => {
     try {
@@ -7,7 +6,9 @@ const checkAuthentication = async (req, res, next) => {
         const authHeader = req.header('Authorization');
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return res.status(401).json(jsend.error({ message: 'Authorization token is missing or malformed' }));
+            return res.status(401).json({
+                message: 'Authorization token is missing or malformed'
+            });
         }
 
         const token = authHeader.split(' ')[1];
@@ -25,7 +26,10 @@ const checkAuthentication = async (req, res, next) => {
             ? 'Token has expired'
             : 'Invalid token';
 
-        res.status(401).json(jsend.error({ message, error: error.message }));
+        res.status(401).json({
+            message,
+            error: error.message
+        });
     }
 };
 

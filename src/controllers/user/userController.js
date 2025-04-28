@@ -1,56 +1,49 @@
 const jwt = require('jsonwebtoken');
 const User = require('../../models/user/userModel');
 const { validationResult } = require('express-validator');
-const jsend = require('jsend');  // استخدام مكتبة jsend لتوحيد الاستجابات
 
 // التسجيل
 const registerUser = async (req, res) => {
-
     try {
-
         const { email, mobile, password } = req.body;
 
         const existingUser = await User.findOne({ email });
         if (existingUser) {
-            return res.status(400).json(jsend.error({ message: 'Email already exists' }));
+            return res.fail('Email already exists');
         }
 
         const user = new User({ email, mobile, password });
         await user.save();
-        return res.status(201).json(jsend.success({ message: 'User registered successfully!' }));
+
+        return res.success({ message: 'User registered successfully!' });
     } catch (err) {
-        return res.status(500).json(jsend.error({ message: 'Error registering user', error: err.message }));
+        return res.error('Error registering user: ' + err.message, 500);
     }
 };
 
 // تسجيل الدخول
 const loginUser = async (req, res) => {
-
     try {
-
         const { email, password } = req.body;
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
+            return res.fail('Invalid email or password');
         }
 
-        // إذا كان الحساب مغلقًا بسبب المحاولات الفاشلة
         if (user.accountLocked) {
-            return res.status(403).json(jsend.error({ message: 'Your account is locked due to multiple failed login attempts.' }));
+            return res.fail('Your account is locked due to multiple failed login attempts.', 403);
         }
 
         const isPasswordValid = await user.isValidPassword(password);
 
         if (!isPasswordValid) {
-            await user.incrementFailedLoginAttempts(); // زيادة المحاولات الفاشلة
-            return res.status(400).json(jsend.error({ message: 'Invalid email or password' }));
+            await user.incrementFailedLoginAttempts();
+            return res.fail('Invalid email or password');
         }
 
-        // تسجيل الدخول بنجاح
-        await user.updateLastLogin(); // تحديث آخر تسجيل دخول وإعادة تعيين المحاولات الفاشلة
+        await user.updateLastLogin();
 
-        // توليد توكن JWT عند نجاح عملية تسجيل الدخول
         const token = jwt.sign(
             {
                 userId: user._id,
@@ -62,18 +55,15 @@ const loginUser = async (req, res) => {
         );
 
         user.tokens.push(token);
-
-        // حفظ التوكن في قاعدة البيانات
         await user.save();
 
-        // تعيين الـ cookie
         res.cookie('token', token, {
-            maxAge: 3600000, // 1 ساعة
-            httpOnly: true,  // تأكد من أن الكوكي غير قابل للوصول عبر JavaScript
-            secure: false,   // يجب تمكينها في بيئة الإنتاج إذا كنت تستخدم HTTPS
+            maxAge: 3600000,
+            httpOnly: true,
+            secure: false,
         });
 
-        res.status(200).json(jsend.success({
+        return res.success({
             message: 'Login successful',
             data: {
                 userId: user._id,
@@ -81,53 +71,45 @@ const loginUser = async (req, res) => {
                 email: user.email,
                 role: user.role,
                 balance: user.balance,
-                token: token
+                token
             }
-        }));
-
+        });
     } catch (err) {
-        return res.status(500).json(jsend.error({ message: 'Error logging in', error: err.message }));
+        return res.error('Error logging in: ' + err.message, 500);
     }
 };
 
-// الحصول على الملف الشخصي للمستخدم
+// الحصول على الملف الشخصي
 const getUserProfile = async (req, res) => {
-
     try {
-
         const userId = req.user?.userId;
         if (!userId) {
-            return res.status(400).json(jsend.error({ message: 'User ID not found in request' }));
+            return res.fail('User ID not found in request');
         }
 
         const user = await User.findById(userId);
         if (!user) {
-            return res.status(404).json(jsend.error({ message: 'User not found' }));
+            return res.fail('User not found', 404);
         }
 
-        return res.json(jsend.success({ data: user }));  // إرجاع بيانات المستخدم في الاستجابة
-
+        return res.success({ data: user });
     } catch (error) {
-        console.error('Error fetching user profile:', error.message);
-        return res.status(500).json(jsend.error({ message: 'Server error while fetching profile', error: error.message }));
+        return res.error('Server error while fetching profile: ' + error.message, 500);
     }
 };
 
 // تحديث الملف الشخصي
 const updateUserProfile = async (req, res) => {
-
     try {
-
         const { email, mobile, password, currentPassword } = req.body;
 
         const user = await User.findById(req.user.userId);
-
         if (!user) {
-            return res.status(404).json(jsend.error({ message: 'User not found' }));
+            return res.fail('User not found', 404);
         }
 
         if (currentPassword && !(await user.isValidPassword(currentPassword))) {
-            return res.status(400).json(jsend.error({ message: 'Incorrect current password' }));
+            return res.fail('Incorrect current password');
         }
 
         user.email = email || user.email;
@@ -136,59 +118,51 @@ const updateUserProfile = async (req, res) => {
 
         await user.save();
 
-        return res.status(200).json(jsend.success({ message: 'Profile updated successfully' }));
+        return res.success({ message: 'Profile updated successfully' });
     } catch (err) {
-        return res.status(500).json(jsend.error({ message: 'Error updating profile', error: err.message }));
+        return res.error('Error updating profile: ' + err.message, 500);
     }
 };
 
 // تسجيل الخروج
 const logoutUser = async (req, res) => {
     try {
-        // تحقق من التوكن المستلم
-        console.log('Received token:', req.token);
-
-        // تأكد من أن التوكن موجود في req.token
         if (!req.token) {
-            return res.status(401).json(jsend.error({ message: 'Authorization token is missing' }));
+            return res.fail('Authorization token is missing', 401);
         }
 
-        // العثور على المستخدم باستخدام الـ ID
-        const user = await User.findById(req.user.userId); // req.user يجب أن يحتوي على بيانات المستخدم من الـ decoded token
-
+        const user = await User.findById(req.user.userId);
         if (!user) {
-            return res.status(404).json(jsend.error({ message: 'User not found' }));
+            return res.fail('User not found', 404);
         }
 
-        // تحقق من تطابق التوكنات
         if (!user.tokens.includes(req.token)) {
-            return res.status(401).json(jsend.error({ message: 'Token mismatch, unable to logout' }));
+            return res.fail('Token mismatch, unable to logout', 401);
         }
 
-        // إزالة التوكن من قائمة التوكنات
         user.tokens = user.tokens.filter(token => token !== req.token);
         await user.save();
 
-        return res.status(200).json(jsend.success({ message: 'Logout successful' }));
+        return res.success({ message: 'Logout successful' });
     } catch (err) {
-        return res.status(500).json(jsend.error({ message: 'Error logging out', error: err.message }));
+        return res.error('Error logging out: ' + err.message, 500);
     }
 };
 
-// تسجيل الخروج من جميع الأجهزة
+// تسجيل الخروج من كل الأجهزة
 const logoutAllUser = async (req, res) => {
     try {
         const user = await User.findById(req.user.userId);
         if (!user) {
-            return res.status(404).json(jsend.error({ message: 'User not found' }));
+            return res.fail('User not found', 404);
         }
 
         user.tokens = [];
         await user.save();
 
-        return res.status(200).json(jsend.success({ message: 'Logged out from all devices' }));
+        return res.success({ message: 'Logged out from all devices' });
     } catch (err) {
-        return res.status(500).json(jsend.error({ message: 'Error logging out from all devices', error: err.message }));
+        return res.error('Error logging out from all devices: ' + err.message, 500);
     }
 };
 
@@ -197,42 +171,38 @@ const deleteAccount = async (req, res) => {
     try {
         const user = await User.findById(req.user.userId);
         if (!user) {
-            return res.status(404).json(jsend.error({ message: 'User not found' }));
+            return res.fail('User not found', 404);
         }
 
         await user.deleteOne();
-
-        return res.status(200).json(jsend.success({ message: 'Account deleted successfully' }));
+        return res.success({ message: 'Account deleted successfully' });
     } catch (err) {
-        return res.status(500).json(jsend.error({ message: 'Error deleting account', error: err.message }));
+        return res.error('Error deleting account: ' + err.message, 500);
     }
 };
 
 // فك قفل الحساب
 const unlockUserAccount = async (req, res) => {
-    const { email } = req.body; // أخذ البريد الإلكتروني من الطلب
+    const { email } = req.body;
 
     try {
-        const user = await User.findOne({ email }); // البحث عن المستخدم باستخدام البريد الإلكتروني
+        const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json(jsend.error({ message: 'User not found' })); // إذا لم يتم العثور على المستخدم
+            return res.fail('User not found', 404);
         }
 
-        // التحقق من حالة القفل
         if (!user.accountLocked) {
-            return res.status(400).json(jsend.error({ message: 'Account is not locked' })); // إذا لم يكن الحساب مغلقًا
+            return res.fail('Account is not locked');
         }
 
-        // فك القفل
         user.accountLocked = false;
-        user.failedLoginAttempts = 0; // إعادة تعيين عدد المحاولات الفاشلة
-        user.lockUntil = null; // إعادة تعيين وقت القفل
+        user.failedLoginAttempts = 0;
+        user.lockUntil = null;
 
-        await user.save(); // حفظ التعديلات في قاعدة البيانات
-
-        return res.status(200).json(jsend.success({ message: 'Account unlocked successfully' })); // إرسال استجابة ناجحة
+        await user.save();
+        return res.success({ message: 'Account unlocked successfully' });
     } catch (err) {
-        return res.status(500).json(jsend.error({ message: 'Error unlocking account', error: err.message })); // إرسال استجابة في حال وجود خطأ
+        return res.error('Error unlocking account: ' + err.message, 500);
     }
 };
 
