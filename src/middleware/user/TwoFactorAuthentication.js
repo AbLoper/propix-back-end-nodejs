@@ -11,22 +11,24 @@ const enableTwoFactorAuth = async (req, res) => {
         // إنشاء مفتاح سري للـ 2FA
         const secret = speakeasy.generateSecret({ name: 'MyApp' });
 
-        // حفظ المفتاح السري في قاعدة البيانات
+        // العثور على المستخدم في قاعدة البيانات
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'المستخدم غير موجود' }));
         }
 
+        // حفظ المفتاح السري في قاعدة البيانات
         user.twoFactorSecret = secret.base32;
         await user.save();
 
         // إنشاء رمز QR للمستخدم
         const qrCodeUrl = await qrcode.toDataURL(secret.otpauth_url);
 
-        res.status(200).json(jsend.success({ qrCodeUrl, message: 'تم تمكين التحقق الثنائي بنجاح.' }));
+        // إرجاع استجابة نجاح باستخدام jsend
+        return res.status(200).json(jsend.success({ qrCodeUrl, message: 'تم تمكين التحقق الثنائي بنجاح.' }));
     } catch (error) {
         console.error('Error enabling 2FA:', error);
-        res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء تمكين التحقق الثنائي', error: error.message }));
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء تمكين التحقق الثنائي.', error: error.message }));
     }
 };
 
@@ -36,14 +38,16 @@ const verifyTwoFactorAuth = async (req, res) => {
     const { userId } = req.user;
 
     try {
+        // العثور على المستخدم في قاعدة البيانات
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json(jsend.error({ message: 'المستخدم غير موجود' }));
         }
 
+        // استرجاع المفتاح السري للمستخدم
         const secret = user.twoFactorSecret;
 
-        // التحقق من صحة رمز التحقق
+        // التحقق من صحة رمز التحقق باستخدام speakeasy
         const verified = speakeasy.totp.verify({
             secret,
             encoding: 'base32',
@@ -51,13 +55,13 @@ const verifyTwoFactorAuth = async (req, res) => {
         });
 
         if (verified) {
-            res.status(200).json(jsend.success({ message: 'تم التحقق بنجاح.' }));
+            return res.status(200).json(jsend.success({ message: 'تم التحقق بنجاح.' }));
         } else {
-            res.status(400).json(jsend.error({ message: 'رمز التحقق غير صالح.' }));
+            return res.status(400).json(jsend.error({ message: 'رمز التحقق غير صالح.' }));
         }
     } catch (error) {
         console.error('Error verifying 2FA token:', error);
-        res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء التحقق من رمز الـ 2FA', error: error.message }));
+        return res.status(500).json(jsend.error({ message: 'حدث خطأ أثناء التحقق من رمز الـ 2FA.', error: error.message }));
     }
 };
 
