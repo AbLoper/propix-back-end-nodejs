@@ -5,22 +5,31 @@ const { default: mongoose } = require("mongoose");
 // إضافة إعلان جديد
 const createProp = async (req, res) => {
     const {
-        propType, address, price, specification, features,
-        financial, images, notifications, notes, propNumber, isFeatured
+        propType, transactionType, address, specification, features,
+        financial, images, notifications, note, isFeatured
     } = req.body;
 
-    if (!propType || !address || !price || !specification || !features || !financial || !images || !propNumber) {
+    if (!propType || !transactionType || !address || !specification || !features || !financial || !images) {
         return res.fail('البيانات غير مكتملة أو بعض الحقول مفقودة');
     }
 
     try {
         const user = await User.findById(req.user.userId);
         if (!user) return res.error('المستخدم غير موجود', 404);
-        if (user.balance < price.amount) return res.fail('رصيد المستخدم غير كافٍ لإضافة الإعلان');
+
+        const priceAmount = financial?.price?.amount || 0;
+        if (user.balance < priceAmount) return res.fail('رصيد المستخدم غير كافٍ لإضافة الإعلان');
 
         const newProp = new Prop({
-            propType, address, price, specification, features,
-            financial, images, notifications, notes, propNumber,
+            propType,
+            transactionType,
+            address,
+            specification,
+            features,
+            financial,
+            images,
+            notifications: notifications || [],
+            note: note || '',
             isFeatured: isFeatured || false,
             createdBy: user._id,
             disabledBy: user._id,
@@ -29,7 +38,7 @@ const createProp = async (req, res) => {
         });
 
         await newProp.save();
-        user.balance -= price.amount;
+        user.balance -= priceAmount;
         await user.save();
 
         return res.success({ message: 'تم إضافة الإعلان بنجاح', data: newProp });
@@ -42,7 +51,7 @@ const createProp = async (req, res) => {
 
 // تعديل إعلان
 const updateProp = async (req, res) => {
-    const { propType, address, price, specification, features, financial, expirydate, isFeatured } = req.body;
+    const { propType, transactionType, address, specification, features, financial, expirydate, isFeatured, images, note } = req.body;
 
     try {
         const prop = await Prop.findById(req.params.id);
@@ -53,11 +62,13 @@ const updateProp = async (req, res) => {
         }
 
         prop.propType = propType;
+        prop.transactionType = transactionType;
         prop.address = address;
-        prop.price = price;
         prop.specification = specification;
         prop.features = features;
         prop.financial = financial;
+        prop.images = images || prop.images;
+        prop.note = note || prop.note;
         prop.expirydate = expirydate;
         prop.status = 'waiting';
         prop.isFeatured = isFeatured !== undefined ? isFeatured : prop.isFeatured;

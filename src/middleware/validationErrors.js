@@ -7,10 +7,14 @@ const validationErrors = (req, res, next) => {
 
     // في حال وجود أخطاء في المدخلات
     if (!errors.isEmpty()) {
-        // إرجاع استجابة بخطأ باستخدام res.error بدلاً من jsend
+        // إرجاع استجابة بخطأ مع الرسالة والأخطاء المفصلة
         return res.status(400).json({
-            message: 'Validation failed',
-            errors: errors.array() // إرسال الأخطاء المتعددة
+            success: false,
+            message: 'التحقق من البيانات فشل',
+            errors: errors.array().map(err => ({
+                param: err.param,
+                msg: err.msg
+            }))
         });
     }
 

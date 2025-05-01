@@ -67,7 +67,8 @@ app.use((err, req, res, next) => {
 
     if (res.headersSent) return next(err);
 
-    const isDev = process.env.NODE_ENV !== 'production';
+    // const isDev = (process.env.NODE_ENV || 'development') !== 'production';
+    const isDev = 'production';
     const message = isDev ? err.message : 'Something went wrong!';
     const stack = isDev ? err.stack : undefined;
 

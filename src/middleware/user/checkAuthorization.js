@@ -6,21 +6,24 @@ const checkAuthorization = (allowedRoles = []) => {
             // التحقق من وجود بيانات المستخدم
             if (!user || !user.role) {
                 return res.status(401).json({
-                    message: 'Unauthorized: User role is missing.'
+                    success: false,
+                    message: 'غير مصرح: لا يوجد دور للمستخدم.'
                 });
             }
 
             // التحقق من السماح بالدور
             if (!allowedRoles.includes(user.role)) {
                 return res.status(403).json({
-                    message: `Forbidden: Access requires one of the following roles: [${allowedRoles.join(', ')}]`
+                    success: false,
+                    message: `ممنوع: الوصول يتطلب أحد الأدوار التالية: [${allowedRoles.join(', ')}]`
                 });
             }
 
             next(); // السماح بالوصول
         } catch (error) {
             res.status(500).json({
-                message: 'Server error while checking role.',
+                success: false,
+                message: 'حدث خطأ في الخادم أثناء التحقق من الدور.',
                 error: error.message
             });
         }

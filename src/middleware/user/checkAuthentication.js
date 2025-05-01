@@ -7,26 +7,36 @@ const checkAuthentication = async (req, res, next) => {
 
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
-                message: 'Authorization token is missing or malformed'
+                success: false,
+                message: 'التوكن المفقود أو بتنسيق غير صحيح'
             });
         }
 
         const token = authHeader.split(' ')[1];
 
-        // التحقق من صحة التوكن بشكل متزامن
+        // التأكد من وجود المتغير البيئي
+        if (!process.env.JWT_SECRET_KEY) {
+            return res.status(500).json({
+                success: false,
+                message: 'مفتاح التوكن غير موجود في البيئة'
+            });
+        }
+
+        // التحقق من صحة التوكن
         const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
 
-        // بإمكانك إضافة بيانات المستخدم من التوكن إلى الطلب
+        // إضافة بيانات المستخدم من التوكن إلى الطلب
         req.user = decoded;
         req.token = token;
 
         next(); // استدعاء التالي في السلسلة
     } catch (error) {
         const message = error.name === 'TokenExpiredError'
-            ? 'Token has expired'
-            : 'Invalid token';
+            ? 'انتهت صلاحية التوكن'
+            : 'توكن غير صالح';
 
         res.status(401).json({
+            success: false,
             message,
             error: error.message
         });

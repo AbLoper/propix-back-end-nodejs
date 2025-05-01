@@ -24,6 +24,13 @@ const propSchema = new mongoose.Schema(
             apartment: { type: Number, required: false },
         },
 
+        // 2. رقم الإعلان
+        propNumber: {
+            type: String,
+            required: true,
+            unique: true,
+        },
+
         // 3. المواصفات الأساسية
         specification: {
             rooms: { type: Number, required: true },
@@ -53,11 +60,10 @@ const propSchema = new mongoose.Schema(
             gym: { type: Boolean, default: false },
         },
 
-        // 5. المعلومات المالية (إيجار، بيع، استثمار)
+        // 5. المعلومات المالية
         financial: {
-
             price: {
-                amount: { type: Number, required: true, min: 10, max: 10000 }, // إضافة تحقق من أن السعر لا يمكن أن يكون سالبًا.
+                amount: { type: Number, required: true, min: 10, max: 10000 },
                 currency: { type: String, required: true, default: 'USD', enum: ['USD'] },
             },
             duration: {
@@ -65,25 +71,23 @@ const propSchema = new mongoose.Schema(
                 enum: ['يومي', 'أسبوعي', 'شهري', 'ربع سنوي', 'نصف سنوي', 'سنوي'],
                 required: false,
             },
-            // period: { type: Number, required: false },
             fee: {
                 type: Number,
                 required: true,
                 validate: {
                     validator: function(value) {
-                        // تحقق من أن الرسوم مناسبة للقيمة التي تم تحديدها
-                        if (this.financial.type === 'rent' && value !== this.financial.price.amount * 0.05) {
-                            return false; // إذا كانت الرسوم لا تتوافق مع نسبة الإيجار
+                        const type = this.transactionType;
+                        if (type === 'rent' && value !== this.financial.price.amount * 0.05) {
+                            return false;
                         }
-                        if (this.financial.type === 'sale' && value !== this.financial.price.amount * 0.01) {
-                            return false; // إذا كانت الرسوم لا تتوافق مع نسبة البيع
+                        if (type === 'sale' && value !== this.financial.price.amount * 0.01) {
+                            return false;
                         }
-                        return true; // القيمة صحيحة
+                        return true;
                     },
                     message: 'القيمة المدخلة للرسوم غير صحيحة وفقًا لنوع المعاملة.',
                 },
             },
-
             paymentMethod: {
                 type: String,
                 enum: ['funds', 'coupon'],
@@ -94,31 +98,9 @@ const propSchema = new mongoose.Schema(
         expirydate: {
             type: Date,
             default: () => moment().add(1, 'year').toDate()
-
-
-            /*  default: function () {
-                // تحديد فترة صلاحية بناءً على نوع المعاملة المالية (بيع، إيجار، استثمار)
-                let duration = 3 * 30 * 24 * 60 * 60 * 1000; // 3 أشهر كإفتراضي
-                if (this.financial.rent && this.financial.rent.duration) {
-                    switch (this.financial.rent.duration) {
-                        case 'يومي':
-                            duration = 1 * 24 * 60 * 60 * 1000;  // يوم
-                            break;
-                        case 'أسبوعي':
-                            duration = 7 * 24 * 60 * 60 * 1000;  // أسبوع
-                            break;
-                        case 'شهري':
-                            duration = 30 * 24 * 60 * 60 * 1000; // شهر
-                            break;
-                        default:
-                            break;
-                    }
-                }
-                return new Date(Date.now() + duration);
-            } */
         },
 
-        // 7. من قام بإجراء التعديلات
+        // 7. المستخدمين
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
@@ -129,8 +111,12 @@ const propSchema = new mongoose.Schema(
             ref: 'User',
             required: true,
         },
+        lastPublishedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+        },
 
-        // 8. حالة الإعلان
+        // 8. الحالة
         status: {
             type: String,
             enum: ['approved', 'disabled', 'waiting', 'rejected', 'expired'],
@@ -140,56 +126,54 @@ const propSchema = new mongoose.Schema(
         autoRepost: {
             type: Boolean,
             default: false,
-            set: function (value) {
-                if (this.expirydate && new Date(this.expirydate) <= Date.now()) {
-                    return false;
-                }
-                if (this.status === 'expired') {
-                    return false;
-                }
+            set: function(value) {
+                if (this.expirydate && new Date(this.expirydate) <= Date.now()) return false;
+                if (this.status === 'expired') return false;
                 return value;
             },
         },
 
-        // 9. المرفقات والملفات
+        // 9. المرفقات
         images: {
             type: [String],
             validate: {
                 validator: (value) => {
-                    // return value.length >= 1 && value.length <= 5 && value.every(img => img.match(/\.(jpeg|jpg|png)$/i));
-                    return value.length >= 1 && value.length <= 5 && value.every(img => img.match(/\.(jpeg|jpg|png)$/i) && img.size <= 5 * 1024 * 1024);  // التحقق من حجم الصورة
-
+                    return value.length >= 1 &&
+                        value.length <= 5 &&
+                        value.every(img => img.match(/\.(jpeg|jpg|png)$/i));
                 },
-                message: 'يجب أن تحتوي المصفوفة على صورة واحدة على الأقل بصيغة JPEG أو jpg أو PNG وألا تتجاوز 5 صور.',
+                message: 'يجب أن تحتوي المصفوفة على صورة واحدة على الأقل بصيغة JPEG أو JPG أو PNG وألا تتجاوز 5 صور.',
             },
             required: true,
-        },        
+        },
 
+        // 10. ملاحظات وإشعارات
         note: {
             type: String,
             maxlength: 100,
             required: false,
         },
+        notifications: {
+            type: [String],
+            default: []
+        },
 
-        // 10. خصائص الإعلان
+        // 11. إعلان مميز
         isFeatured: { type: Boolean, default: false },
-
     },
     { timestamps: true }
 );
 
+// Virtual لحساب الرسوم
 propSchema.virtual('feeCalculated').get(function() {
-    if (this.financial.type === 'rent') {
+    if (this.transactionType === 'rent') {
         return this.financial.price.amount * 0.05;
-    } else if (this.financial.type === 'sale') {
+    } else if (this.transactionType === 'sale') {
         return this.financial.price.amount * 0.01;
     }
     return 0;
 });
 
-
-// إنشاء نموذج مستخدم باستخدام الـ Schema
 const Prop = mongoose.model('Prop', propSchema);
 
-// تصدير النموذج
 module.exports = Prop;
