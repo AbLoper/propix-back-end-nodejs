@@ -23,7 +23,7 @@ router.post(
         check('address.building').isNumeric().withMessage('رقم المبنى يجب أن يكون رقميًا'),
         check('address.floor').isNumeric().withMessage('الطابق يجب أن يكون رقميًا'),
         check('specification.rooms').isNumeric().withMessage('عدد الغرف يجب أن يكون رقميًا'),
-        check('financial.price.amount').isFloat({ min: 10 }).withMessage('السعر يجب أن يكون أكبر من 10'),
+        check('financial.price.amount').isFloat({ min: 10.0 }).withMessage('السعر يجب أن يكون أكبر من 10.0'),
         check('financial.price.currency').isIn(['USD']).withMessage('العملة غير صالحة'),
         check('images').isArray().withMessage('الصور يجب أن تكون مصفوفة'),
     ],
