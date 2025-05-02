@@ -5,47 +5,73 @@ const { default: mongoose } = require("mongoose");
 // إضافة إعلان جديد
 const createProp = async (req, res) => {
     const {
-        propType, transactionType, address, specification, features,
-        financial, images, notifications, note, isFeatured
+        propType,
+        address,
+        price,
+        specification,
+        paymentMethod
     } = req.body;
 
-    if (!propType || !transactionType || !address || !specification || !features || !financial || !images) {
-        return res.fail('البيانات غير مكتملة أو بعض الحقول مفقودة');
-    }
-
     try {
-        const user = await User.findById(req.user.userId);
-        if (!user) return res.error('المستخدم غير موجود', 404);
+        // 1. التحقق من بيانات المستخدم
+        const user = req.user;  // المستخدم الذي قام بتسجيل الدخول
 
-        const priceAmount = financial?.price?.amount || 0;
-        if (user.balance < priceAmount) return res.fail('رصيد المستخدم غير كافٍ لإضافة الإعلان');
+        // 2. التحقق من وجود طريقة الدفع
+        if (paymentMethod === 'funds') {
+            // التحقق من وجود رصيد كافٍ في `funds`
+            if (user.funds < price.amount) {
+                return res.status(400).json({
+                    message: 'لا يوجد رصيد كافٍ لإتمام العملية'
+                });
+            }
 
+            // خصم المبلغ من رصيد المستخدم
+            user.funds -= price.amount;
+            await user.save();  // حفظ التغييرات في قاعدة البيانات
+
+        } else if (paymentMethod === 'coupon') {
+            // التحقق من وجود كوبون صالح
+            if (!user.coupon || user.coupon < price.amount) {
+                return res.status(400).json({
+                    message: 'الكوبون غير صالح أو لا يحتوي على قيمة كافية'
+                });
+            }
+
+            // خصم المبلغ من قيمة الكوبون
+            user.coupon -= price.amount;
+            await user.save();  // حفظ التغييرات في قاعدة البيانات
+
+        } else {
+            // إذا كانت طريقة الدفع غير معروفة
+            return res.status(400).json({
+                message: 'طريقة الدفع غير صالحة'
+            });
+        }
+
+        // 3. إنشاء الإعلان الجديد
         const newProp = new Prop({
             propType,
-            transactionType,
             address,
+            price,
             specification,
-            features,
-            financial,
-            images,
-            notifications: notifications || [],
-            note: note || '',
-            isFeatured: isFeatured || false,
-            createdBy: user._id,
-            disabledBy: user._id,
-            lastPublishedBy: user._id,
-            status: 'waiting'
+            user: user._id,  // ربط الإعلان بالمستخدم
         });
 
+        // حفظ الإعلان في قاعدة البيانات
         await newProp.save();
-        user.balance -= priceAmount;
-        await user.save();
 
-        return res.success({ message: 'تم إضافة الإعلان بنجاح', data: newProp });
+        // 4. إرسال استجابة ناجحة
+        return res.status(201).json({
+            message: 'تم إضافة الإعلان بنجاح',
+            data: newProp
+        });
 
     } catch (error) {
-        console.error('Error in createProp:', error);
-        return res.error('حدث خطأ أثناء إنشاء الإعلان', 500);
+        console.error(error);
+        return res.status(500).json({
+            message: 'حدث خطأ أثناء إضافة الإعلان',
+            error: error.message
+        });
     }
 };
 

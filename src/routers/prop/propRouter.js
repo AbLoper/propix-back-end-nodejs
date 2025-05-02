@@ -1,70 +1,57 @@
 const express = require('express');
-const { body } = require('express-validator');
 const router = express.Router();
-const propController = require('../../controllers/prop/propController');
+const PropController = require('../../controllers/prop/propController');
 const checkAuthentication = require('../../middleware/user/checkAuthentication');
 const checkAuthorization = require('../../middleware/user/checkAuthorization');
-const { validationErrors } = require('../../middleware/validationErrors');
+const { check } = require('express-validator');
+const validationErrors = require('../../middleware/validationErrors');
+const checkPaymentMethod = require('../../middleware/user/checkPaymentMethod');
 
-// 1. إضافة إعلان جديد
+// تعريف مسارات العقارات (Prop)
+
+// 1. إنشاء عقار جديد
 router.post(
-    '/create',
-    checkAuthentication,
-    checkAuthorization(['user', 'admin', 'owner']),
+    '/',
+    checkAuthentication, // التحقق من هوية المستخدم
+    checkAuthorization(['admin']), // التحقق من أن المستخدم هو المسؤول فقط
     [
-        body('propType').isString().withMessage('نوع العقار مطلوب').notEmpty(),
-        body('transactionType').isString().withMessage('نوع المعاملة مطلوب').notEmpty(),
-        body('address.city').isString().withMessage('المدينة مطلوبة').notEmpty(),
-        body('address.area').isString().withMessage('المنطقة مطلوبة').notEmpty(),
-        body('address.street').isString().withMessage('الشارع مطلوب').notEmpty(),
-        body('address.building').isInt({ min: 1 }).withMessage('رقم المبنى يجب أن يكون أكبر من 0'),
-        body('address.floor').isInt({ min: 1 }).withMessage('الطابق يجب أن يكون أكبر من 0'),
-        body('financial.price.amount').isFloat({ gt: 0 }).withMessage('السعر يجب أن يكون قيمة عددية أكبر من 0'),
-        body('financial.price.currency').isString().withMessage('العملة مطلوبة').notEmpty(),
-        body('specification.rooms').isInt({ min: 1 }).withMessage('عدد الغرف مطلوب ويجب أن يكون أكبر من 0'),
-        body('specification.floor').isInt({ min: 1 }).withMessage('الطابق مطلوب ويجب أن يكون أكبر من 0'),
-        body('specification.bathroom').isInt({ min: 1 }).withMessage('عدد الحمامات مطلوب ويجب أن يكون أكبر من 0'),
+        check('propType').notEmpty().withMessage('نوع العقار مطلوب'),
+        check('transactionType').notEmpty().isIn(['rent', 'sale', 'investment']).withMessage('نوع المعاملة مطلوب'),
+        check('address.city').notEmpty().withMessage('المدينة مطلوبة'),
+        check('address.area').notEmpty().withMessage('المنطقة مطلوبة'),
+        check('address.street').notEmpty().withMessage('الشارع مطلوب'),
+        check('address.building').isNumeric().withMessage('رقم المبنى يجب أن يكون رقميًا'),
+        check('address.floor').isNumeric().withMessage('الطابق يجب أن يكون رقميًا'),
+        check('specification.rooms').isNumeric().withMessage('عدد الغرف يجب أن يكون رقميًا'),
+        check('financial.price.amount').isFloat({ min: 10 }).withMessage('السعر يجب أن يكون أكبر من 10'),
+        check('financial.price.currency').isIn(['USD']).withMessage('العملة غير صالحة'),
+        check('images').isArray().withMessage('الصور يجب أن تكون مصفوفة'),
     ],
-    validationErrors,
-    propController.createProp
+    validationErrors.validationErrors, // التحقق من الأخطاء في المدخلات
+    checkPaymentMethod, // التحقق من طريقة الدفع
+    PropController.createProp // استدعاء الدالة المسؤولة عن إنشاء العقار
 );
 
-// 2. تعديل إعلان
+// 2. الحصول على جميع العقارات
+router.get('/', PropController.getAllProps);
+
+// 3. الحصول على عقار حسب الـ id
+router.get('/:id', PropController.getPropById);
+
+// 4. تحديث بيانات عقار
 router.put(
     '/:id',
-    checkAuthentication,
-    checkAuthorization(['user', 'admin', 'owner']),
-    [
-        body('propType').optional().isString(),
-        body('transactionType').optional().isString(),
-        body('address.city').optional().isString(),
-        body('address.area').optional().isString(),
-        body('address.street').optional().isString(),
-        body('address.building').optional().isInt({ min: 1 }),
-        body('address.floor').optional().isInt({ min: 1 }),
-        body('financial.price.amount').optional().isFloat({ gt: 0 }),
-        body('financial.price.currency').optional().isString(),
-        body('specification.rooms').optional().isInt({ min: 1 }),
-        body('specification.floor').optional().isInt({ min: 1 }),
-        body('specification.bathroom').optional().isInt({ min: 1 }),
-    ],
-    validationErrors,
-    propController.updateProp
+    checkAuthentication, // التحقق من هوية المستخدم
+    checkAuthorization(['admin']), // التحقق من أن المستخدم هو المسؤول فقط
+    PropController.updateProp // استدعاء دالة التحديث
 );
 
-// باقي المسارات كما هي ولكن مع تحسينات طفيفة في المسارات:
-
-router.delete('/:id', checkAuthentication, checkAuthorization(['user', 'admin', 'owner']), validationErrors, propController.deleteProp);
-router.patch('/activate/:id', checkAuthentication, checkAuthorization(['admin', 'owner']), validationErrors, propController.activateProp);
-router.patch('/deactivate/:id', checkAuthentication, checkAuthorization(['admin', 'owner']), validationErrors, propController.deactivateProp);
-router.patch('/reactivate/:id', checkAuthentication, checkAuthorization(['admin', 'owner']), validationErrors, propController.reActivateProp);
-router.get('/', checkAuthentication, checkAuthorization(['admin', 'owner']), validationErrors, propController.getAllProps);
-router.get('/:id', checkAuthentication, checkAuthorization(['user', 'admin', 'owner']), validationErrors, propController.getPropById);
-router.post('/search', checkAuthentication, checkAuthorization(['user', 'admin', 'owner']), validationErrors, propController.searchProps);
-
-// تم تعديل هذا المسار لتوحيد البنية
-router.put('/feature/:id', checkAuthentication, checkAuthorization(['admin', 'owner']), validationErrors, propController.featureProp);
-router.get('/featured', checkAuthentication, checkAuthorization(['admin', 'owner']), validationErrors, propController.getFeaturedProps);
-router.get('/userprops', checkAuthentication, checkAuthorization(['user', 'admin', 'owner']), validationErrors, propController.getUserProps);
+// 5. حذف عقار
+router.delete(
+    '/:id',
+    checkAuthentication, // التحقق من هوية المستخدم
+    checkAuthorization(['admin']), // التحقق من أن المستخدم هو المسؤول فقط
+    PropController.deleteProp // استدعاء دالة الحذف
+);
 
 module.exports = router;

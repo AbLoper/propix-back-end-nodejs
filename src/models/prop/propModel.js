@@ -4,45 +4,36 @@ const moment = require('moment');
 const propSchema = new mongoose.Schema(
     {
         // 1. معلومات أساسية عن العقار
-        propType: {
-            type: String,
-            required: true,
-        },
-
+        propType: { type: String, required: true },
         transactionType: {
             type: String,
             enum: ['rent', 'sale', 'investment'],
             required: true,
         },
-
         address: {
             city: { type: String, required: true },
             area: { type: String, required: true },
             street: { type: String, required: true },
             building: { type: Number, required: true },
             floor: { type: Number, required: true },
-            apartment: { type: Number, required: false },
+            apartment: { type: Number },
         },
 
-        // 2. رقم الإعلان
-        propNumber: {
-            type: String,
-            required: true,
-            unique: true,
-        },
-
-        // 3. المواصفات الأساسية
+        // 2. المواصفات الأساسية
         specification: {
             rooms: { type: Number, required: true },
-            area: { type: Number, required: false },
+            area: { type: Number },
             floor: { type: Number, required: true },
             bathroom: { type: Number, required: true },
             balcony: { type: Number, required: true },
-            maidsRoom: { type: Number, required: false },
-            design: { type: String, enum: ['Duplex', 'FullDuplex'], required: false },
+            maidsRoom: { type: Number },
+            design: {
+                type: String,
+                enum: ['Duplex', 'FullDuplex'],
+            },
         },
 
-        // 4. الميزات الإضافية
+        // 3. الميزات الإضافية
         features: {
             parking: { type: Boolean, default: false },
             elevator: { type: Boolean, default: false },
@@ -60,11 +51,16 @@ const propSchema = new mongoose.Schema(
             gym: { type: Boolean, default: false },
         },
 
-        // 5. المعلومات المالية
+        // 4. المعلومات المالية
         financial: {
             price: {
                 amount: { type: Number, required: true, min: 10, max: 10000 },
-                currency: { type: String, required: true, default: 'USD', enum: ['USD'] },
+                currency: {
+                    type: String,
+                    required: true,
+                    default: 'USD',
+                    enum: ['USD'],
+                },
             },
             duration: {
                 type: String,
@@ -73,20 +69,7 @@ const propSchema = new mongoose.Schema(
             },
             fee: {
                 type: Number,
-                required: true,
-                validate: {
-                    validator: function(value) {
-                        const type = this.transactionType;
-                        if (type === 'rent' && value !== this.financial.price.amount * 0.05) {
-                            return false;
-                        }
-                        if (type === 'sale' && value !== this.financial.price.amount * 0.01) {
-                            return false;
-                        }
-                        return true;
-                    },
-                    message: 'القيمة المدخلة للرسوم غير صحيحة وفقًا لنوع المعاملة.',
-                },
+                required: false, // لم يعد مطلوبًا من المستخدم
             },
             paymentMethod: {
                 type: String,
@@ -94,13 +77,13 @@ const propSchema = new mongoose.Schema(
             },
         },
 
-        // 6. التواريخ
+        // 5. التواريخ
         expirydate: {
             type: Date,
-            default: () => moment().add(1, 'year').toDate()
+            default: () => moment().add(1, 'year').toDate(),
         },
 
-        // 7. المستخدمين
+        // 6. المستخدمين
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
@@ -109,14 +92,14 @@ const propSchema = new mongoose.Schema(
         disabledBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
-            required: true,
+            required: false, // ✅ تم التعديل
         },
         lastPublishedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
         },
 
-        // 8. الحالة
+        // 7. الحالة
         status: {
             type: String,
             enum: ['approved', 'disabled', 'waiting', 'rejected', 'expired'],
@@ -126,54 +109,65 @@ const propSchema = new mongoose.Schema(
         autoRepost: {
             type: Boolean,
             default: false,
-            set: function(value) {
+            set: function (value) {
                 if (this.expirydate && new Date(this.expirydate) <= Date.now()) return false;
                 if (this.status === 'expired') return false;
                 return value;
             },
         },
 
-        // 9. المرفقات
+        // 8. المرفقات
         images: {
             type: [String],
             validate: {
                 validator: (value) => {
-                    return value.length >= 1 &&
+                    return (
+                        value.length >= 1 &&
                         value.length <= 5 &&
-                        value.every(img => img.match(/\.(jpeg|jpg|png)$/i));
+                        value.every((img) => img.match(/\.(jpeg|jpg|png)$/i))
+                    );
                 },
-                message: 'يجب أن تحتوي المصفوفة على صورة واحدة على الأقل بصيغة JPEG أو JPG أو PNG وألا تتجاوز 5 صور.',
+                message: 'يجب أن تحتوي المصفوفة على صورة واحدة على الأقل وألا تتجاوز 5 صور.',
             },
             required: true,
         },
 
-        // 10. ملاحظات وإشعارات
+        // 9. ملاحظات وإشعارات
         note: {
             type: String,
             maxlength: 100,
-            required: false,
         },
         notifications: {
             type: [String],
-            default: []
+            default: [],
         },
 
-        // 11. إعلان مميز
+        // 10. إعلان مميز
         isFeatured: { type: Boolean, default: false },
     },
     { timestamps: true }
 );
 
-// Virtual لحساب الرسوم
-propSchema.virtual('feeCalculated').get(function() {
+propSchema.pre('validate', function (next) {
+    const price = this.financial?.price?.amount;
+    if (!price) return next();
+
     if (this.transactionType === 'rent') {
-        return this.financial.price.amount * 0.05;
+        this.financial.fee = price * 0.05;
     } else if (this.transactionType === 'sale') {
-        return this.financial.price.amount * 0.01;
+        this.financial.fee = price * 0.01;
+    } else {
+        this.financial.fee = 0;
     }
+    next();
+});
+
+// رسوم محسوبة افتراضيًا
+propSchema.virtual('feeCalculated').get(function () {
+    if (this.transactionType === 'rent') return this.financial.price.amount * 0.05;
+    if (this.transactionType === 'sale') return this.financial.price.amount * 0.01;
     return 0;
 });
 
 const Prop = mongoose.model('Prop', propSchema);
-
 module.exports = Prop;
