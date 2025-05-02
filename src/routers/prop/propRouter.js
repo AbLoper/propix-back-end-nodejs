@@ -13,7 +13,7 @@ const checkPaymentMethod = require('../../middleware/user/checkPaymentMethod');
 router.post(
     '/',
     checkAuthentication, // التحقق من هوية المستخدم
-    checkAuthorization(['admin']), // التحقق من أن المستخدم هو المسؤول فقط
+    checkAuthorization(['admin','user']), // التحقق من أن المستخدم هو المسؤول فقط
     [
         check('propType').notEmpty().withMessage('نوع العقار مطلوب'),
         check('transactionType').notEmpty().isIn(['rent', 'sale', 'investment']).withMessage('نوع المعاملة مطلوب'),
