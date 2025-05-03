@@ -1,57 +1,50 @@
 const express = require('express');
 const router = express.Router();
+
 const PropController = require('../../controllers/prop/propController');
 const checkAuthentication = require('../../middleware/user/checkAuthentication');
 const checkAuthorization = require('../../middleware/user/checkAuthorization');
-const { check } = require('express-validator');
+const { body } = require('express-validator');
 const validationErrors = require('../../middleware/validationErrors');
 const checkPaymentMethod = require('../../middleware/user/checkPaymentMethod');
 
-// تعريف مسارات العقارات (Prop)
-
-// 1. إنشاء عقار جديد
+// إنشاء إعلان
 router.post(
     '/create',
-    checkAuthentication, // التحقق من هوية المستخدم
-    checkAuthorization(['admin', 'user']), // التحقق من أن المستخدم هو المسؤول فقط
+    checkAuthentication,
+    checkAuthorization(['admin', 'user']),
     [
-        check('propType').notEmpty().withMessage('نوع العقار مطلوب'),
-        check('transactionType').notEmpty().isIn(['rent', 'sale', 'investment']).withMessage('نوع المعاملة مطلوب'),
-        check('address.city').notEmpty().withMessage('المدينة مطلوبة'),
-        check('address.area').notEmpty().withMessage('المنطقة مطلوبة'),
-        check('address.street').notEmpty().withMessage('الشارع مطلوب'),
-        check('address.building').isNumeric().withMessage('رقم المبنى يجب أن يكون رقميًا'),
-        check('address.floor').isNumeric().withMessage('الطابق يجب أن يكون رقميًا'),
-        check('specification.rooms').isNumeric().withMessage('عدد الغرف يجب أن يكون رقميًا'),
-        check('financial.price.amount').isFloat({ min: 10.0 }).withMessage('السعر يجب أن يكون أكبر من 10.0'),
-        check('financial.price.currency').isIn(['USD']).withMessage('العملة غير صالحة'),
-        check('images').isArray().withMessage('الصور يجب أن تكون مصفوفة'),
+        body('propType').notEmpty().withMessage('نوع العقار مطلوب'),
+        body('transactionType').isIn(['rent', 'sale']).withMessage('نوع المعاملة غير صالح'),
+        body('address.city').notEmpty().withMessage('المدينة مطلوبة'),
+        body('address.area').notEmpty().withMessage('المنطقة مطلوبة'),
+        body('address.street').notEmpty().withMessage('الشارع مطلوب'),
+        body('address.building').isNumeric().withMessage('رقم المبنى يجب أن يكون رقمًا'),
+        body('specification.rooms').isNumeric().withMessage('عدد الغرف مطلوب'),
+        body('financial.price.amount').isFloat({ min: 10.0 }).withMessage('السعر غير كافٍ'),
+        body('financial.price.currency').isIn(['USD']).withMessage('العملة غير صالحة'),
+        body('images').isArray().withMessage('الصور يجب أن تكون مصفوفة')
     ],
-    validationErrors.validationErrors, // التحقق من الأخطاء في المدخلات
-    checkPaymentMethod, // التحقق من طريقة الدفع
-    PropController.createProp // استدعاء الدالة المسؤولة عن إنشاء العقار
+    validationErrors.validationErrors,
+    checkPaymentMethod,
+    PropController.createProp
 );
 
-// 2. الحصول على جميع العقارات
+// استرجاع الإعلانات
 router.get('/', PropController.getAllProps);
-
-// 3. الحصول على عقار حسب الـ id
+router.get('/featured', PropController.getFeaturedProps);
+router.get('/pending', checkAuthentication, checkAuthorization(['user', 'admin']), PropController.getPendingProps);
+router.get('/user', checkAuthentication, PropController.getUserProps);
 router.get('/:id', PropController.getPropById);
 
-// 4. تحديث بيانات عقار
-router.put(
-    '/:id',
-    checkAuthentication, // التحقق من هوية المستخدم
-    checkAuthorization(['admin']), // التحقق من أن المستخدم هو المسؤول فقط
-    PropController.updateProp // استدعاء دالة التحديث
-);
+// تحديث وحذف
+router.put('/:id', checkAuthentication, PropController.updateProp);
+router.delete('/:id', checkAuthentication, PropController.deleteProp);
 
-// 5. حذف عقار
-router.delete(
-    '/:id',
-    checkAuthentication, // التحقق من هوية المستخدم
-    checkAuthorization(['admin']), // التحقق من أن المستخدم هو المسؤول فقط
-    PropController.deleteProp // استدعاء دالة الحذف
-);
+// تفعيل وتعطيل
+router.patch('/:id/activate', checkAuthentication, checkAuthorization(['admin', 'owner']), PropController.activateProp);
+router.patch('/:id/deactivate', checkAuthentication, checkAuthorization(['admin', 'owner']), PropController.deactivateProp);
+router.patch('/:id/reactivate', checkAuthentication, checkAuthorization(['admin', 'owner']), PropController.reActivateProp);
+router.patch('/:id/feature', checkAuthentication, checkAuthorization(['admin', 'owner']), PropController.featureProp);
 
 module.exports = router;

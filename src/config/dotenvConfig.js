@@ -1,4 +1,4 @@
-/* const dotenv = require('dotenv');
+const dotenv = require('dotenv');
 
 // تحميل المتغيرات البيئية
 const result = dotenv.config();
@@ -10,4 +10,3 @@ if (result.error) {
 }
 
 module.exports = dotenv;
- */

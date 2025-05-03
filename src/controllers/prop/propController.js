@@ -18,96 +18,95 @@ const createProp = async (req, res) => {
             isFeatured
         } = req.body;
 
-            const user = await User.findById(req.user.userId);
-            if (!user) {
-                return res.status(404).json({ message: 'المستخدم غير موجود' });
-            }
-            const { price, paymentMethod } = financial;
+        const user = await User.findById(req.user.userId);
+        if (!user) return res.status(404).json({ message: 'المستخدم غير موجود' });
 
-            if (paymentMethod === 'funds') {
-                if (user.funds < price.amount) {
-                    return res.status(400).json({ message: 'لا يوجد رصيد كافٍ لإتمام العملية' });
-                }
-                user.funds -= price.amount;
-                console.log(`Funds deducted: ${price.amount}, Remaining funds: ${user.funds}`);
+        const { price, paymentMethod } = financial;
+        const priceAmount = price?.amount || 0;
 
-            } else if (paymentMethod === 'coupons') {
-                if (!user.coupons || user.coupons < 1) {
-                    return res.status(400).json({ message: 'الكوبون غير صالح أو غير كافٍ' });
-                }
-                user.coupons -= 1;
-                console.log(`Coupon used, Remaining coupons: ${user.coupons}`);
-
-            } else {
-                return res.status(400).json({ message: 'طريقة الدفع غير صالحة' });
-            }
-
-            const newProp = new Prop({
-                propType,
-                transactionType,
-                address,
-                specification,
-                features,
-                financial,
-                images,
-                note,
-                notifications,
-                isFeatured,
-                createdBy: user._id,
-                lastPublishedBy: user._id
-            });
-
-            await newProp.save();
-            await user.save()
-
-            return res.status(201).json({
-                message: 'تم إضافة الإعلان بنجاح',
-                data: newProp
-            });
-
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({ message: 'حدث خطأ أثناء إضافة الإعلان', error: error.message });
-    }
-};
-
-// تعديل إعلان
-const updateProp = async (req, res) => {
-    const {
-        propType, transactionType, address, specification,
-        features, financial, expirydate, isFeatured,
-        images, note
-    } = req.body;
-
-    try {
-        const prop = await Prop.findById(req.params.id);
-        if (!prop) return res.status(404).json({ message: 'الإعلان غير موجود' });
-
-        if (prop.createdBy.toString() !== req.user.id && !req.user.roles.includes('admin')) {
-            return res.status(403).json({ message: 'ليس لديك صلاحيات لتعديل هذا الإعلان' });
+        let fee = 0;
+        if (transactionType === 'rent') {
+            fee = priceAmount * 0.05;
+        } else if (transactionType === 'sale') {
+            fee = priceAmount * 0.01;
         }
 
-        Object.assign(prop, {
+        const totalDeduction = priceAmount + fee;
+
+        if (paymentMethod === 'funds') {
+            if (user.funds < totalDeduction) {
+                return res.status(400).json({ message: 'الرصيد غير كافٍ لإتمام العملية' });
+            }
+        } else if (paymentMethod === 'coupons') {
+            if (!user.coupons || user.coupons < 1) {
+                return res.status(400).json({ message: 'عدد الكوبونات غير كافٍ' });
+            }
+        } else {
+            return res.status(400).json({ message: 'طريقة الدفع غير صالحة' });
+        }
+
+        const newProp = new Prop({
             propType,
             transactionType,
             address,
             specification,
             features,
             financial,
-            images: images || prop.images,
-            note: note || prop.note,
-            expirydate,
-            isFeatured: isFeatured !== undefined ? isFeatured : prop.isFeatured,
-            status: 'waiting'
+            images,
+            note,
+            notifications,
+            isFeatured,
+            createdBy: user._id,
+            lastPublishedBy: user._id
         });
 
-        await prop.save();
-        return res.status(200).json({ message: 'تم تعديل الإعلان بنجاح', data: prop });
+        await newProp.save();
 
+        if (paymentMethod === 'funds') {
+            user.funds -= totalDeduction;
+        } else if (paymentMethod === 'coupons') {
+            user.coupons -= 1;
+        }
+        await user.save();
+
+        return res.status(201).json({ message: 'تم إنشاء الإعلان بنجاح', data: newProp });
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء تعديل الإعلان' });
+        return res.status(500).json({ message: 'حدث خطأ أثناء إنشاء الإعلان', error: error.message });
     }
 };
+
+// تعديل إعلان
+const updateProp = async (req, res) => {
+    try {
+        const prop = await Prop.findById(req.params.id);
+        if (!prop) return res.status(404).json({ message: 'الإعلان غير موجود' });
+
+        const userId = req.user.userId || req.user.id || req.user._id;
+        const userRoles = req.user.roles || [];
+
+        if (prop.createdBy.toString() !== userId && !userRoles.includes('admin')) {
+            return res.status(403).json({ message: 'لا تملك صلاحيات التعديل' });
+        }
+
+        const updatableFields = [
+            'propType', 'transactionType', 'address', 'specification',
+            'features', 'financial', 'images', 'note', 'expirydate', 'isFeatured'
+        ];
+
+        updatableFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                prop[field] = req.body[field];
+            }
+        });
+
+        prop.status = 'waiting';
+        await prop.save();
+        return res.status(200).json({ message: 'تم تحديث الإعلان بنجاح', data: prop });
+    } catch (error) {
+        return res.status(500).json({ message: 'حدث خطأ أثناء التحديث', error: error.message });
+    }
+};
+
 
 // حذف إعلان
 const deleteProp = async (req, res) => {
@@ -115,7 +114,10 @@ const deleteProp = async (req, res) => {
         const prop = await Prop.findById(req.params.id);
         if (!prop) return res.status(404).json({ message: 'الإعلان غير موجود' });
 
-        if (prop.createdBy.toString() !== req.user.id && !req.user.roles.includes('admin')) {
+        const userId = req.user?.userId || req.user?.id || req.user?._id;
+        const userRoles = req.user?.roles || [];
+
+        if (prop.createdBy.toString() !== userId && !userRoles.includes('admin')) {
             return res.status(403).json({ message: 'ليس لديك صلاحيات لحذف هذا الإعلان' });
         }
 
@@ -123,9 +125,10 @@ const deleteProp = async (req, res) => {
         return res.status(200).json({ message: 'تم حذف الإعلان بنجاح' });
 
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء حذف الإعلان' });
+        return res.status(500).json({ message: 'حدث خطأ أثناء حذف الإعلان', error: error.message });
     }
 };
+
 
 // تفعيل إعلان
 const activateProp = async (req, res) => {
@@ -184,7 +187,7 @@ const reActivateProp = async (req, res) => {
     }
 };
 
-// استرجاع جميع الإعلانات
+// الاستعلامات
 const getAllProps = async (req, res) => {
     try {
         const props = await Prop.find().populate('createdBy', 'name email');
@@ -195,7 +198,6 @@ const getAllProps = async (req, res) => {
     }
 };
 
-// استرجاع إعلان معين
 const getPropById = async (req, res) => {
     try {
         const prop = await Prop.findById(req.params.id).populate('createdBy', 'name email');
@@ -206,7 +208,6 @@ const getPropById = async (req, res) => {
     }
 };
 
-// تفعيل/تعطيل كمميز
 const featureProp = async (req, res) => {
     try {
         const prop = await Prop.findById(req.params.id);
@@ -227,7 +228,6 @@ const featureProp = async (req, res) => {
     }
 };
 
-// استرجاع الإعلانات المميزة
 const getFeaturedProps = async (req, res) => {
     try {
         const props = await Prop.find({ isFeatured: true }).populate('createdBy', 'name email');
@@ -238,18 +238,16 @@ const getFeaturedProps = async (req, res) => {
     }
 };
 
-// استرجاع إعلانات المستخدم
 const getUserProps = async (req, res) => {
     try {
-        const props = await Prop.find({ createdBy: req.user._id });
+        const props = await Prop.find({ createdBy: req.user.userId || req.user._id });
         if (!props.length) return res.status(404).json({ message: 'لا توجد إعلانات خاصة بك' });
         return res.status(200).json({ message: 'تم الاسترجاع بنجاح', data: props });
     } catch (error) {
-        return res.status(500).json({ message: 'حدث خطأ أثناء الاسترجاع' });
+        return res.status(500).json({ message: 'حدث خطأ أثناء الاسترجاع', error: error.message });
     }
 };
 
-// الإعلانات المعلقة
 const getPendingProps = async (req, res) => {
     try {
         const props = await Prop.find({ status: 'waiting' }).populate('createdBy', 'name email');
