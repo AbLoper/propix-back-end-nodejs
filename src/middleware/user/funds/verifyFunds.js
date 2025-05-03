@@ -8,6 +8,7 @@ const verifyFunds = async (req, res, next) => {
         }
 
         const amount = Number(req.body?.financial?.price?.amount);
+        console.log("Received amount: ", amount);
 
         if (isNaN(amount) || amount <= 0) {
             return res.status(400).json({ message: 'قيمة السعر غير صحيحة أو مفقودة' });
@@ -16,9 +17,12 @@ const verifyFunds = async (req, res, next) => {
         if (user.funds < amount) {
             return res.status(400).json({ message: 'الرصيد غير كافٍ' });
         }
+        console.log("User funds: ", user.funds);
 
         // تخزين المستخدم في الطلب للعمليات القادمة
         req.currentUser = user;
+        // console.log('req.currentUser is: ', req.currentUser)
+
         next();
     } catch (error) {
         console.error('خطأ أثناء التحقق من الرصيد:', error.message);

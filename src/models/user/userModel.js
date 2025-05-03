@@ -119,10 +119,11 @@ userSchema.methods.incrementFailedLoginAttempts = async function () {
 // دالة للتحقق مما إذا كان الحساب مقفلًا
 userSchema.methods.isAccountLocked = function () {
     if (this.accountLocked && this.lockUntil > Date.now()) {
-        return jsend.error({ message: 'حسابك مقفل بسبب محاولات تسجيل الدخول الفاشلة. يرجى المحاولة بعد 5 دقائق.' });
+        return jsend.error('حسابك مقفل بسبب محاولات تسجيل الدخول الفاشلة. يرجى المحاولة بعد 5 دقائق.');
     }
     return false;
 };
+
 
 // دالة لفك قفل الحساب
 userSchema.methods.unlockAccount = async function () {

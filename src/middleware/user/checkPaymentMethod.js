@@ -3,6 +3,8 @@ const verifyFunds = require("./funds/verifyFunds");
 
 const checkPaymentMethod = (req, res, next) => {
     const paymentMethod = req.body?.financial?.paymentMethod;
+    console.log("Received payment method: ", paymentMethod);
+
 
     if (!paymentMethod) {
         return res.status(400).json({ message: 'يجب تحديد طريقة الدفع ضمن البيانات المالية' });

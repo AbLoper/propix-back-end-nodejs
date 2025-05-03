@@ -11,9 +11,9 @@ const checkPaymentMethod = require('../../middleware/user/checkPaymentMethod');
 
 // 1. إنشاء عقار جديد
 router.post(
-    '/',
+    '/create',
     checkAuthentication, // التحقق من هوية المستخدم
-    checkAuthorization(['admin','user']), // التحقق من أن المستخدم هو المسؤول فقط
+    checkAuthorization(['admin', 'user']), // التحقق من أن المستخدم هو المسؤول فقط
     [
         check('propType').notEmpty().withMessage('نوع العقار مطلوب'),
         check('transactionType').notEmpty().isIn(['rent', 'sale', 'investment']).withMessage('نوع المعاملة مطلوب'),

@@ -1,5 +1,6 @@
 const { default: mongoose } = require('mongoose');
-const moment = require('moment');
+// استبدال moment بـ Date عادي لتقليل الاعتمادية
+// const moment = require('moment');
 
 const propSchema = new mongoose.Schema(
     {
@@ -23,13 +24,12 @@ const propSchema = new mongoose.Schema(
         specification: {
             rooms: { type: Number, required: true },
             area: { type: Number },
-            floor: { type: Number, required: true },
             bathroom: { type: Number, required: true },
             balcony: { type: Number, required: true },
             maidsRoom: { type: Number },
             design: {
                 type: String,
-                enum: ['Duplex', 'FullDuplex'],
+                enum: ['Duplex', 'FullDuplex'], // راجع المصطلح إن لزم
             },
         },
 
@@ -54,33 +54,34 @@ const propSchema = new mongoose.Schema(
         // 4. المعلومات المالية
         financial: {
             price: {
-                amount: { type: Number, required: true, min: 10, max: 10000 },
+                amount: { type: Number, required: true },
                 currency: {
                     type: String,
-                    required: true,
                     default: 'USD',
                     enum: ['USD'],
+                    // removed required: true because default is set
                 },
             },
             duration: {
                 type: String,
                 enum: ['يومي', 'أسبوعي', 'شهري', 'ربع سنوي', 'نصف سنوي', 'سنوي'],
-                required: false,
+                default: 'شهري',
             },
             fee: {
                 type: Number,
-                required: false, // لم يعد مطلوبًا من المستخدم
+                // سيتم حسابه تلقائيًا في pre('validate')
             },
             paymentMethod: {
                 type: String,
-                enum: ['funds', 'coupon'],
+                required: true,
+                enum: ['funds', 'coupons'],
             },
         },
 
         // 5. التواريخ
         expirydate: {
             type: Date,
-            default: () => moment().add(1, 'year').toDate(),
+            default: () => new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
         },
 
         // 6. المستخدمين
@@ -88,11 +89,7 @@ const propSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',
             required: true,
-        },
-        disabledBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
-            required: false, // ✅ تم التعديل
+            index: true,
         },
         lastPublishedBy: {
             type: mongoose.Schema.Types.ObjectId,
@@ -109,11 +106,6 @@ const propSchema = new mongoose.Schema(
         autoRepost: {
             type: Boolean,
             default: false,
-            set: function (value) {
-                if (this.expirydate && new Date(this.expirydate) <= Date.now()) return false;
-                if (this.status === 'expired') return false;
-                return value;
-            },
         },
 
         // 8. المرفقات
@@ -121,13 +113,14 @@ const propSchema = new mongoose.Schema(
             type: [String],
             validate: {
                 validator: (value) => {
+                    if (!Array.isArray(value)) return false;
                     return (
                         value.length >= 1 &&
                         value.length <= 5 &&
-                        value.every((img) => img.match(/\.(jpeg|jpg|png)$/i))
+                        value.every((img) => /\.(jpe?g|png)$/i.test(img))
                     );
                 },
-                message: 'يجب أن تحتوي المصفوفة على صورة واحدة على الأقل وألا تتجاوز 5 صور.',
+                message: 'عدد الصور يجب أن يكون بين 1 و 5، ويجب أن تكون من نوع JPG أو PNG.',
             },
             required: true,
         },
@@ -136,6 +129,7 @@ const propSchema = new mongoose.Schema(
         note: {
             type: String,
             maxlength: 100,
+            required: false,
         },
         notifications: {
             type: [String],
@@ -148,18 +142,28 @@ const propSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-propSchema.pre('validate', function (next) {
+// المعالجة المسبقة قبل الحفظ
+propSchema.pre('validate', function () {
     const price = this.financial?.price?.amount;
-    if (!price) return next();
 
-    if (this.transactionType === 'rent') {
-        this.financial.fee = price * 0.05;
-    } else if (this.transactionType === 'sale') {
-        this.financial.fee = price * 0.01;
-    } else {
-        this.financial.fee = 0;
+    if (price) {
+        if (this.transactionType === 'rent') {
+            this.financial.fee = price * 0.05;
+        } else if (this.transactionType === 'sale') {
+            this.financial.fee = price * 0.01;
+        } else {
+            this.financial.fee = 0;
+        }
     }
-    next();
+
+    // التعامل مع autoRepost هنا بدلًا من setter
+    const isExpired = this.status === 'expired';
+    const isAfterExpiry = this.expirydate && new Date(this.expirydate) <= Date.now();
+    if (isExpired || isAfterExpiry) {
+        this.autoRepost = false;
+    }
+
+    // next();
 });
 
 // رسوم محسوبة افتراضيًا

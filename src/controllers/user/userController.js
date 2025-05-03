@@ -31,8 +31,9 @@ const loginUser = async (req, res) => {
             return res.fail('Invalid email or password');
         }
 
-        if (user.accountLocked) {
-            return res.fail('Your account is locked due to multiple failed login attempts.', 403);
+        const lockedStatus = user.isAccountLocked();
+        if (lockedStatus) {
+            return res.status(423).json(lockedStatus);
         }
 
         const isPasswordValid = await user.isValidPassword(password);
@@ -78,6 +79,7 @@ const loginUser = async (req, res) => {
         return res.error('Error logging in: ' + err.message, 500);
     }
 };
+
 
 // الحصول على الملف الشخصي
 const getUserProfile = async (req, res) => {
